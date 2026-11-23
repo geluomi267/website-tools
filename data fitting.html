@@ -1,0 +1,3175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f1e8">
+<meta name="description" content="一个完全离线的二元实验数据拟合工具：选择线性、多项式、指数、对数、幂函数或双曲线模型，自动计算回归方程、R²、误差指标和残差图。">
+<title>拟合实验室 FITLAB · 二元数据回归拟合</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23133b32'/%3E%3Cpath d='M12 48V16M12 48h40' stroke='%23d9ef9a' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M17 41c10 0 11-21 21-21 6 0 9 6 13 15' fill='none' stroke='%23d9ef9a' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='19' cy='38' r='3' fill='%23e8754f'/%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   FITLAB — 单文件离线回归拟合工具
+   ============================================================ */
+:root {
+  --paper: #f4f1e8;
+  --paper-2: #fbf9f3;
+  --paper-3: #efebe0;
+  --white: #fffefa;
+  --ink: #173b32;
+  --ink-deep: #0d2f27;
+  --ink-2: #36564e;
+  --muted: #73817b;
+  --muted-2: #8b968f;
+  --line: #ddd7c9;
+  --line-strong: #c9c1b0;
+  --green: #15594a;
+  --green-deep: #103c32;
+  --green-deeper: #0b2d25;
+  --mint: #d9ef9a;
+  --mint-soft: #eef7d8;
+  --orange: #e26943;
+  --orange-soft: #fbe7de;
+  --danger: #a83d2d;
+  --danger-soft: #fbe9e4;
+  --warn: #8b5a17;
+  --warn-soft: #fbf3df;
+  --radius-xl: 28px;
+  --radius-lg: 22px;
+  --radius-md: 15px;
+  --shadow-lg: 0 26px 70px rgba(25, 52, 43, .11);
+  --shadow-md: 0 14px 38px rgba(25, 52, 43, .08);
+  --shadow-sm: 0 5px 16px rgba(25, 52, 43, .05);
+  --font-sans: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+  --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --shell: 1160px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-width: 300px;
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse 60% 42% at 7% -4%, rgba(217, 239, 154, .36), transparent 62%),
+    radial-gradient(ellipse 48% 36% at 100% 16%, rgba(226, 105, 67, .09), transparent 66%),
+    var(--paper);
+  font-family: var(--font-sans);
+  font-size: 15.5px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .26;
+  background-image: radial-gradient(rgba(23, 59, 50, .22) .65px, transparent .65px);
+  background-size: 24px 24px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 64%);
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 64%);
+}
+::selection { background: var(--mint); color: var(--ink); }
+button, input, textarea { font: inherit; color: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+a { color: inherit; }
+svg { display: block; }
+[hidden] { display: none !important; }
+.shell { width: min(100% - 48px, var(--shell)); margin-inline: auto; }
+.sr-only {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.skip-link {
+  position: fixed; top: 10px; left: 10px; z-index: 100;
+  transform: translateY(-160%); padding: 10px 16px; border-radius: 10px;
+  background: var(--ink); color: var(--paper); text-decoration: none;
+}
+.skip-link:focus { transform: translateY(0); }
+.noscript {
+  margin: 14px auto 0; width: min(100% - 36px, var(--shell)); padding: 10px 14px;
+  border: 1px solid rgba(168, 61, 45, .25); border-radius: 10px;
+  background: var(--danger-soft); color: var(--danger); font-size: 12px;
+}
+:focus-visible { outline: 3px solid rgba(21, 89, 74, .38); outline-offset: 3px; }
+h1, h2, h3, p { margin-top: 0; }
+
+/* ---------- 顶栏 ---------- */
+.site-header {
+  position: sticky; top: 0; z-index: 50;
+  padding-top: env(safe-area-inset-top, 0px);
+  border-bottom: 1px solid rgba(201, 193, 176, .58);
+  background: rgba(244, 241, 232, .82);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+.header-inner { height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.brand { display: flex; align-items: center; gap: 11px; text-decoration: none; min-width: 0; }
+.logo-mark {
+  width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center;
+  border-radius: 12px; background: var(--ink-deep); color: var(--mint);
+  box-shadow: 0 7px 18px rgba(13, 47, 39, .2);
+}
+.logo-mark svg { width: 23px; height: 23px; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.05; }
+.brand-name { font-weight: 760; font-size: 15px; letter-spacing: -.02em; }
+.brand-sub { margin-top: 5px; font: 500 8.5px/1 var(--font-mono); letter-spacing: .24em; color: var(--muted); }
+.header-meta { display: flex; align-items: center; gap: 9px; }
+.privacy-pill {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: rgba(255, 254, 250, .58); color: var(--ink-2);
+  font-size: 11.5px; white-space: nowrap;
+}
+.privacy-pill svg { width: 13px; height: 13px; flex: 0 0 13px; color: var(--green); }
+.privacy-short { display: none; }
+.ghost-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 38px; padding: 8px 13px; border: 1px solid transparent; border-radius: 10px;
+  background: transparent; color: var(--ink-2); font-size: 12.5px; font-weight: 620;
+  cursor: pointer; transition: background .2s, border-color .2s, color .2s;
+}
+.ghost-btn:hover { background: rgba(255, 254, 250, .72); border-color: var(--line); color: var(--ink); }
+.ghost-btn svg { width: 15px; height: 15px; }
+
+/* ---------- Hero ---------- */
+.hero {
+  display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, .72fr);
+  gap: 58px; align-items: center; padding-top: 58px; padding-bottom: 50px;
+}
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 9px; margin-bottom: 17px;
+  color: var(--green); font: 600 10.5px/1.2 var(--font-mono); letter-spacing: .19em;
+}
+.eyebrow-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--orange);
+  box-shadow: 0 0 0 4px rgba(226, 105, 67, .12);
+}
+.hero h1 {
+  max-width: 760px; margin-bottom: 20px;
+  font-size: clamp(2.65rem, 5vw, 4.55rem); line-height: 1.065;
+  letter-spacing: -.055em; font-weight: 820;
+}
+.hero h1 .headline-line { display: inline-block; white-space: nowrap; }
+.hero h1 .mark {
+  position: relative; display: inline-block; color: var(--green-deep);
+  background: linear-gradient(transparent 66%, rgba(217, 239, 154, .94) 66%, rgba(217, 239, 154, .94) 94%, transparent 94%);
+  padding-inline: .02em;
+}
+.hero-lede { max-width: 585px; margin-bottom: 25px; color: var(--ink-2); font-size: 16.2px; line-height: 1.78; }
+.hero-lede strong { color: var(--ink); font-weight: 680; }
+.hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.btn {
+  --btn-bg: transparent; --btn-fg: var(--ink); --btn-border: var(--line-strong);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 46px; padding: 10px 17px; border: 1px solid var(--btn-border); border-radius: 12px;
+  background: var(--btn-bg); color: var(--btn-fg); text-decoration: none;
+  font-size: 13.5px; font-weight: 690; letter-spacing: -.01em; cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn svg { width: 16px; height: 16px; }
+.btn-primary {
+  --btn-bg: var(--ink-deep); --btn-fg: #f8f8ec; --btn-border: var(--ink-deep);
+  box-shadow: 0 12px 26px rgba(13, 47, 39, .2);
+}
+.btn-primary:hover { --btn-bg: var(--green); --btn-border: var(--green); box-shadow: 0 15px 32px rgba(13, 47, 39, .25); }
+.btn-ghost { --btn-bg: rgba(255, 254, 250, .65); }
+.btn-ghost:hover { --btn-bg: var(--white); border-color: var(--line-strong); }
+.hero-foot {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 20px;
+  color: var(--muted); font-size: 11.5px;
+}
+.hero-foot span { display: inline-flex; align-items: center; gap: 5px; }
+.hero-foot i { width: 3px; height: 3px; border-radius: 50%; background: var(--line-strong); }
+.hero-foot svg { width: 12px; height: 12px; color: var(--green); }
+
+/* 流程卡 */
+.flow-card {
+  position: relative; overflow: hidden; padding: 23px 23px 19px;
+  border: 1px solid rgba(217, 239, 154, .13); border-radius: var(--radius-xl);
+  background: var(--green-deep); color: #eff6e9;
+  box-shadow: 0 30px 70px rgba(13, 47, 39, .25);
+}
+.flow-card::before {
+  content: ""; position: absolute; width: 280px; height: 280px; right: -150px; top: -120px;
+  border-radius: 50%; background: radial-gradient(circle, rgba(217, 239, 154, .19), transparent 68%);
+  pointer-events: none;
+}
+.flow-card::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .12;
+  background-image: linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px);
+  background-size: 28px 28px;
+  -webkit-mask-image: radial-gradient(circle at 82% 10%, #000, transparent 58%);
+  mask-image: radial-gradient(circle at 82% 10%, #000, transparent 58%);
+}
+.flow-head { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.flow-label { font: 600 9.5px/1 var(--font-mono); letter-spacing: .18em; color: rgba(239, 246, 233, .55); }
+.flow-local { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; color: rgba(239, 246, 233, .68); }
+.flow-local i { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 4px rgba(217, 239, 154, .1); }
+.flow-plot {
+  position: relative; z-index: 1; height: 112px; margin: 15px 0 10px; border-radius: 13px;
+  overflow: hidden; border: 1px solid rgba(239, 246, 233, .1);
+  background: rgba(255, 255, 255, .035);
+}
+.flow-plot svg { width: 100%; height: 100%; }
+.flow-steps { position: relative; z-index: 1; list-style: none; margin: 0; padding: 0; }
+.flow-step {
+  display: flex; align-items: center; gap: 11px; padding: 9px 0;
+  border-top: 1px solid rgba(239, 246, 233, .09);
+  opacity: .42; transition: opacity .25s ease;
+}
+.flow-step.is-active, .flow-step.is-done { opacity: 1; }
+.flow-num {
+  position: relative; display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 30px;
+  border: 1px solid rgba(239, 246, 233, .27); border-radius: 50%;
+  color: rgba(239, 246, 233, .65); font: 600 9.5px/1 var(--font-mono);
+  transition: background .2s, color .2s, border-color .2s;
+}
+.flow-num .check-icon { display: none; width: 14px; height: 14px; }
+.flow-step.is-active .flow-num { background: var(--mint); border-color: var(--mint); color: var(--green-deep); }
+.flow-step.is-done .flow-num { background: rgba(217, 239, 154, .12); border-color: rgba(217, 239, 154, .45); color: var(--mint); }
+.flow-step.is-done .num-text { display: none; }
+.flow-step.is-done .check-icon { display: block; }
+.flow-step-copy { min-width: 0; }
+.flow-step-copy strong { display: block; font-size: 12.5px; font-weight: 620; letter-spacing: -.01em; }
+.flow-step-copy small { display: block; margin-top: 2px; color: rgba(239, 246, 233, .48); font-size: 10.5px; }
+.flow-current {
+  position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 10px; padding-top: 12px; border-top: 1px solid rgba(239, 246, 233, .14);
+}
+.flow-current span { color: rgba(239, 246, 233, .45); font-size: 10.5px; }
+.flow-current strong { color: var(--mint); font-size: 11.5px; font-weight: 580; text-align: right; }
+
+/* ---------- 通用 section ---------- */
+.section { padding-top: 34px; scroll-margin-top: 92px; }
+.section-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 28px;
+  margin-bottom: 21px; padding-top: 24px; border-top: 1px solid var(--line);
+}
+.section-heading { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.section-index {
+  display: inline-grid; place-items: center; min-width: 44px; height: 24px; padding: 0 8px;
+  border: 1px solid var(--line-strong); border-radius: 999px;
+  color: var(--muted); font: 600 9px/1 var(--font-mono); letter-spacing: .12em;
+  background: rgba(255, 254, 250, .45); white-space: nowrap;
+}
+.section-head h2 { margin: 0; font-size: clamp(1.38rem, 2.2vw, 1.8rem); line-height: 1.15; letter-spacing: -.04em; font-weight: 780; }
+.section-side { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.section-sub { max-width: 460px; margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.65; text-align: right; }
+.status-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; min-height: 28px; padding: 4px 10px;
+  border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 254, 250, .56);
+  color: var(--muted); font-size: 10.5px; font-weight: 600; white-space: nowrap;
+}
+.status-chip::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--muted-2); }
+.status-chip.is-ready { color: var(--green); border-color: rgba(21, 89, 74, .24); background: var(--mint-soft); }
+.status-chip.is-ready::before { background: var(--green); }
+.status-chip.is-warn { color: var(--warn); border-color: rgba(139, 90, 23, .22); background: var(--warn-soft); }
+.status-chip.is-warn::before { background: var(--orange); }
+
+/* ---------- 模型选择 ---------- */
+.model-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.model-card {
+  position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 158px;
+  padding: 15px 15px 13px; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 18px;
+  background: rgba(255, 254, 250, .67); color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+}
+.model-card:hover { transform: translateY(-2px); border-color: var(--line-strong); background: var(--white); box-shadow: var(--shadow-md); }
+.model-card.is-selected {
+  background: var(--green-deep); border-color: var(--green-deep); color: #f6f8ec;
+  box-shadow: 0 20px 38px rgba(16, 60, 50, .24); transform: translateY(-2px);
+}
+.model-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.model-glyph { width: 58px; height: 34px; color: var(--green); transition: color .2s; }
+.model-glyph svg { width: 100%; height: 100%; }
+.model-card.is-selected .model-glyph { color: var(--mint); }
+.model-check {
+  display: grid; place-items: center; width: 19px; height: 19px; flex: 0 0 19px;
+  border: 1px solid var(--line-strong); border-radius: 50%; color: transparent;
+  transition: background .2s, border-color .2s, color .2s;
+}
+.model-check svg { width: 11px; height: 11px; }
+.model-card.is-selected .model-check { background: var(--mint); border-color: var(--mint); color: var(--green-deep); }
+.model-name { display: block; margin-top: 9px; font-size: 14.5px; line-height: 1.25; font-weight: 720; letter-spacing: -.015em; }
+.model-desc { display: block; margin-top: 3px; color: var(--muted); font-size: 10.8px; line-height: 1.45; }
+.model-card.is-selected .model-desc { color: rgba(246, 248, 236, .53); }
+.model-formula {
+  display: block; width: fit-content; max-width: 100%; margin-top: auto; padding-top: 10px;
+  color: var(--ink-2); font: 500 12px/1.35 var(--font-mono); letter-spacing: -.03em;
+  overflow-wrap: anywhere;
+}
+.model-card.is-selected .model-formula { color: var(--mint); }
+.model-formula i { font-family: var(--font-serif); font-style: italic; }
+.model-formula sup { font-size: .7em; line-height: 0; }
+.model-hint {
+  display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; padding: 12px 14px;
+  border: 1px dashed var(--line-strong); border-radius: 13px;
+  background: rgba(255, 254, 250, .4); color: var(--muted);
+}
+.model-hint svg { width: 15px; height: 15px; flex: 0 0 15px; margin-top: 2px; color: var(--green); }
+.model-hint p { margin: 0; font-size: 11.5px; line-height: 1.65; }
+.model-hint strong { color: var(--ink-2); font-weight: 650; }
+
+/* ---------- 数据输入 ---------- */
+.data-card {
+  position: relative; border: 1px solid var(--line); border-radius: var(--radius-lg);
+  background: rgba(255, 254, 250, .8); box-shadow: var(--shadow-md); overflow: hidden;
+}
+.data-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 15px 17px; border-bottom: 1px solid var(--line);
+  background: rgba(251, 249, 243, .74);
+}
+.data-label { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+.data-label strong { font-size: 12.5px; font-weight: 720; }
+.data-label span { color: var(--muted); font: 500 10.5px/1.3 var(--font-mono); }
+.toolbar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.subtle-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 34px; padding: 6px 10px; border: 1px solid transparent; border-radius: 8px;
+  background: transparent; color: var(--ink-2); font-size: 11.5px; font-weight: 620; cursor: pointer;
+  transition: background .18s, border-color .18s, color .18s;
+}
+.subtle-btn:hover { background: var(--white); border-color: var(--line); color: var(--ink); }
+.subtle-btn svg { width: 13px; height: 13px; }
+.subtle-btn.is-active { background: var(--ink-deep); border-color: var(--ink-deep); color: var(--mint); }
+.paste-panel { padding: 16px 17px; border-bottom: 1px solid var(--line); background: #f7f4eb; }
+.paste-panel label { display: block; margin-bottom: 7px; color: var(--ink-2); font-size: 11.5px; font-weight: 620; }
+.paste-panel textarea {
+  display: block; width: 100%; min-height: 116px; resize: vertical; padding: 11px 12px;
+  border: 1px solid var(--line-strong); border-radius: 11px; background: var(--white);
+  font: 13px/1.65 var(--font-mono); color: var(--ink);
+  transition: border-color .2s, box-shadow .2s;
+}
+.paste-panel textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(21, 89, 74, .1); }
+.paste-foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 9px; margin-top: 9px; }
+.paste-foot small { color: var(--muted); font-size: 10.5px; }
+.btn-small {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 7px 13px;
+  border: 1px solid var(--green-deep); border-radius: 9px; background: var(--green-deep); color: #f8f8ec;
+  font-size: 11.5px; font-weight: 650; cursor: pointer; transition: background .18s, transform .18s;
+}
+.btn-small:hover { background: var(--green); transform: translateY(-1px); }
+.table-wrap { max-height: 512px; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.point-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.point-table th {
+  position: sticky; top: 0; z-index: 2; padding: 9px 8px;
+  background: #f6f2e8; border-bottom: 1px solid var(--line);
+  color: var(--muted); font: 600 9px/1.2 var(--font-mono); letter-spacing: .12em; text-align: left;
+}
+.point-table th:first-child, .point-table td:first-child { width: 50px; padding-left: 17px; }
+.point-table th:last-child, .point-table td:last-child { width: 48px; padding-right: 13px; }
+.point-table td { padding: 7px 8px; border-bottom: 1px solid rgba(221, 215, 201, .6); vertical-align: middle; }
+.point-table tr:last-child td { border-bottom: 0; }
+.row-no { color: var(--muted-2); font: 500 10.5px/1 var(--font-mono); }
+.cell-wrap { position: relative; }
+.point-input {
+  width: 100%; min-width: 0; height: 41px; padding: 8px 11px;
+  border: 1px solid var(--line); border-radius: 9px; background: #fbf9f4;
+  color: var(--ink); font: 500 16px/1 var(--font-mono);
+  transition: border-color .18s, box-shadow .18s, background .18s;
+}
+.point-input::placeholder { color: #b4b8ae; font-weight: 400; }
+.point-input:hover { border-color: var(--line-strong); background: var(--white); }
+.point-input:focus { outline: none; border-color: var(--green); background: var(--white); box-shadow: 0 0 0 3px rgba(21, 89, 74, .1); }
+.point-input.is-invalid { border-color: rgba(168, 61, 45, .6); background: var(--danger-soft); box-shadow: 0 0 0 3px rgba(168, 61, 45, .07); }
+.row-delete {
+  display: grid; place-items: center; width: 34px; height: 34px; margin-inline: auto;
+  border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--muted);
+  cursor: pointer; transition: background .18s, color .18s, border-color .18s;
+}
+.row-delete:hover { background: var(--danger-soft); border-color: rgba(168, 61, 45, .18); color: var(--danger); }
+.row-delete:disabled { opacity: .3; cursor: not-allowed; }
+.row-delete svg { width: 15px; height: 15px; }
+.table-foot {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  padding: 11px 17px; border-top: 1px solid var(--line); background: rgba(251, 249, 243, .6);
+}
+.add-row {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 10px;
+  border: 1px dashed var(--line-strong); border-radius: 9px; background: transparent;
+  color: var(--ink-2); font-size: 11.5px; font-weight: 620; cursor: pointer;
+  transition: background .18s, border-color .18s, color .18s;
+}
+.add-row:hover { background: var(--white); border-color: var(--green); color: var(--green); }
+.add-row svg { width: 13px; height: 13px; }
+.table-hint { margin: 0; color: var(--muted); font-size: 10.8px; line-height: 1.5; text-align: right; }
+.table-hint strong { color: var(--ink-2); font-weight: 650; }
+.data-warning {
+  display: flex; align-items: flex-start; gap: 9px; margin: 0 17px 13px;
+  padding: 10px 12px; border: 1px solid rgba(139, 90, 23, .22); border-radius: 10px;
+  background: var(--warn-soft); color: var(--warn);
+  font-size: 11.5px; line-height: 1.55;
+}
+.data-warning.is-danger { border-color: rgba(168, 61, 45, .25); background: var(--danger-soft); color: var(--danger); }
+.data-warning svg { width: 14px; height: 14px; flex: 0 0 14px; margin-top: 1px; }
+.data-warning span { min-width: 0; }
+.chart-settings { border-top: 1px solid var(--line); background: rgba(251, 249, 243, .42); }
+.chart-settings summary {
+  display: flex; align-items: center; gap: 7px; padding: 11px 17px;
+  color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; list-style: none;
+}
+.chart-settings summary::-webkit-details-marker { display: none; }
+.chart-settings summary::before {
+  content: ""; width: 5px; height: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg); transition: transform .2s; margin-right: 2px;
+}
+.chart-settings[open] summary::before { transform: rotate(45deg); }
+.chart-settings summary span { color: var(--muted-2); font-weight: 400; }
+.axis-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 17px 15px; }
+.axis-field label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10.5px; font-weight: 600; }
+.axis-field input {
+  width: 100%; height: 38px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--white); font-size: 16px; color: var(--ink);
+}
+.axis-field input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(21, 89, 74, .09); }
+
+/* ---------- 结果：空态 ---------- */
+.results-section { padding-bottom: 15px; }
+.empty-state {
+  position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center;
+  padding: 44px 24px 40px; text-align: center;
+  border: 1px dashed var(--line-strong); border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 50% 10%, rgba(217, 239, 154, .22), transparent 42%),
+    rgba(255, 254, 250, .52);
+}
+.empty-art { width: 164px; height: 106px; margin-bottom: 11px; opacity: .9; }
+.empty-art svg { width: 100%; height: 100%; }
+.empty-kicker { margin-bottom: 6px; color: var(--orange); font: 600 9.5px/1 var(--font-mono); letter-spacing: .16em; }
+.empty-state h3 { margin-bottom: 7px; font-size: 19px; letter-spacing: -.025em; font-weight: 740; }
+.empty-state p { max-width: 440px; margin-bottom: 0; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+.empty-tips { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 7px; margin-top: 17px; }
+.empty-tips span {
+  display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px;
+  border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 254, 250, .55);
+  color: var(--muted); font-size: 10px;
+}
+.empty-tips i { width: 4px; height: 4px; border-radius: 50%; background: var(--line-strong); }
+
+/* ---------- 结果：主体 ---------- */
+.result-content { animation: riseIn .45s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.result-hero {
+  position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) 260px;
+  border: 1px solid rgba(217, 239, 154, .11); border-radius: var(--radius-xl);
+  background: var(--green-deep); color: #f3f7e9; box-shadow: 0 30px 70px rgba(13, 47, 39, .23);
+}
+.result-hero::before {
+  content: ""; position: absolute; width: 420px; height: 420px; right: -190px; top: -240px;
+  border-radius: 50%; background: radial-gradient(circle, rgba(217, 239, 154, .18), transparent 65%);
+  pointer-events: none;
+}
+.result-hero::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .08;
+  background-image: radial-gradient(rgba(255,255,255,.8) .7px, transparent .7px);
+  background-size: 18px 18px;
+  -webkit-mask-image: linear-gradient(120deg, transparent 30%, #000);
+  mask-image: linear-gradient(120deg, transparent 30%, #000);
+}
+.result-copy { position: relative; z-index: 1; padding: 26px 27px 24px; min-width: 0; }
+.result-kicker { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-bottom: 13px; }
+.model-badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;
+  border: 1px solid rgba(217, 239, 154, .25); border-radius: 999px;
+  color: var(--mint); font-size: 10.5px; font-weight: 650;
+}
+.model-badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--mint); }
+.method-badge {
+  display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px;
+  background: rgba(255, 255, 255, .06); color: rgba(243, 247, 233, .55);
+  font: 500 9.5px/1.2 var(--font-mono); letter-spacing: .02em;
+}
+.quality-badge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px;
+  border-radius: 999px; background: rgba(217, 239, 154, .13); color: var(--mint);
+  font-size: 10.5px; font-weight: 650;
+}
+.quality-badge[data-level="fair"], .quality-badge[data-level="weak"], .quality-badge[data-level="poor"] {
+  background: rgba(226, 105, 67, .14); color: #f6b096;
+}
+.quality-badge[data-level="none"] { background: rgba(255, 255, 255, .06); color: rgba(243, 247, 233, .58); }
+.quality-badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.equation {
+  margin: 0; color: #f6f8ea; font: 500 clamp(1.45rem, 3.2vw, 2.05rem)/1.4 var(--font-serif);
+  letter-spacing: -.025em; overflow-wrap: anywhere;
+}
+.equation i { font-style: italic; }
+.equation sup { font-size: .62em; line-height: 0; }
+.equation .eq-num { font-family: var(--font-mono); font-size: .82em; letter-spacing: -.045em; }
+.equation-note { margin: 10px 0 0; color: rgba(243, 247, 233, .48); font-size: 11px; line-height: 1.55; }
+.result-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.btn-on-dark {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 38px; padding: 7px 12px; border: 1px solid rgba(243, 247, 233, .18); border-radius: 9px;
+  background: transparent; color: rgba(243, 247, 233, .82); font-size: 11px; font-weight: 620;
+  cursor: pointer; transition: background .18s, border-color .18s, color .18s, transform .18s;
+}
+.btn-on-dark:hover { background: rgba(255, 255, 255, .08); border-color: rgba(243, 247, 233, .36); color: #fff; transform: translateY(-1px); }
+.btn-on-dark.is-primary { background: var(--mint); border-color: var(--mint); color: var(--green-deep); }
+.btn-on-dark.is-primary:hover { background: #e6f6b7; border-color: #e6f6b7; }
+.btn-on-dark svg { width: 13px; height: 13px; }
+.r2-panel {
+  position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: center;
+  padding: 26px 25px; border-left: 1px solid rgba(243, 247, 233, .12);
+  background: rgba(0, 0, 0, .08);
+}
+.r2-label { color: rgba(243, 247, 233, .56); font-size: 10.5px; letter-spacing: .02em; }
+.r2-label sup { font-size: .65em; }
+.r2-value {
+  margin: 3px 0 0; color: var(--mint); font: 650 clamp(2.7rem, 5vw, 4rem)/1 var(--font-mono);
+  letter-spacing: -.06em; font-variant-numeric: tabular-nums;
+}
+.r2-meta { margin-top: 7px; color: rgba(243, 247, 233, .45); font-size: 10.5px; }
+.r2-track { width: 100%; height: 5px; margin-top: 15px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .11); }
+.r2-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--mint); transition: width .6s cubic-bezier(.2,.7,.2,1); }
+.r2-fill[data-level="fair"], .r2-fill[data-level="weak"], .r2-fill[data-level="poor"] { background: var(--orange); }
+
+/* ---------- 图表 ---------- */
+.chart-card {
+  margin-top: 14px; padding: 17px 18px 14px;
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  background: rgba(255, 254, 250, .86); box-shadow: var(--shadow-md);
+}
+.chart-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.chart-tabs { display: inline-flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-3); }
+.chart-tab {
+  min-height: 32px; padding: 5px 11px; border: 0; border-radius: 7px; background: transparent;
+  color: var(--muted); font-size: 11px; font-weight: 620; cursor: pointer; transition: background .18s, color .18s, box-shadow .18s;
+}
+.chart-tab:hover { color: var(--ink); }
+.chart-tab[aria-selected="true"] { background: var(--white); color: var(--ink); box-shadow: 0 2px 7px rgba(25, 52, 43, .08); }
+.chart-tools { display: flex; align-items: center; gap: 11px; }
+.chart-note { color: var(--muted); font-size: 10.5px; }
+.chart-export {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 5px 9px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--white);
+  color: var(--ink-2); font-size: 10.5px; font-weight: 620; cursor: pointer; transition: border-color .18s, color .18s;
+}
+.chart-export:hover { border-color: var(--green); color: var(--green); }
+.chart-export svg { width: 12px; height: 12px; }
+.chart-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; min-height: 23px; margin-top: 11px; color: var(--muted); font-size: 10.5px; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+.legend-line { width: 16px; height: 2px; border-radius: 2px; background: var(--orange); }
+.legend-dash { width: 16px; height: 0; border-top: 1.5px dashed rgba(23, 59, 50, .48); }
+.chart-wrap {
+  position: relative; width: 100%; height: 425px; margin-top: 1px;
+  border-radius: 12px; overflow: hidden; background: transparent;
+}
+.chart-wrap canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: crosshair; }
+.chart-tip {
+  position: absolute; z-index: 5; min-width: 150px; max-width: 235px; padding: 9px 11px;
+  border: 1px solid rgba(217, 239, 154, .2); border-radius: 10px;
+  background: var(--green-deeper); color: #f2f7e8;
+  box-shadow: 0 14px 32px rgba(13, 47, 39, .28); pointer-events: none;
+  font-size: 10.5px; line-height: 1.5;
+}
+.tip-head { margin-bottom: 4px; color: var(--mint); font: 600 9.5px/1.2 var(--font-mono); letter-spacing: .06em; }
+.tip-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.tip-row span { color: rgba(243, 247, 233, .48); }
+.tip-row b { color: #f7f9ee; font: 500 10.5px/1.5 var(--font-mono); }
+.tip-row b.is-neg { color: #f4a68c; }
+.chart-mobile-hint { display: none; margin: 7px 1px 0; color: var(--muted-2); font-size: 10px; text-align: center; }
+
+/* ---------- 统计卡 ---------- */
+.stats-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; margin-top: 14px; }
+.stat-card {
+  position: relative; min-width: 0; padding: 13px 13px 11px; border: 1px solid var(--line); border-radius: 13px;
+  background: rgba(255, 254, 250, .74); box-shadow: var(--shadow-sm);
+}
+.stat-card::before {
+  content: ""; position: absolute; left: 13px; top: 0; width: 20px; height: 2px; border-radius: 2px;
+  background: var(--line-strong); transition: background .2s;
+}
+.stat-card:hover::before { background: var(--green); }
+.stat-label { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 9.8px; font-weight: 600; white-space: nowrap; }
+.stat-label sup { font-size: .65em; }
+.stat-value {
+  margin-top: 5px; color: var(--ink); font: 600 clamp(1.05rem, 1.7vw, 1.32rem)/1.2 var(--font-mono);
+  letter-spacing: -.045em; overflow-wrap: anywhere; font-variant-numeric: tabular-nums;
+}
+.stat-hint { margin-top: 3px; color: var(--muted-2); font-size: 9px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- 参数与摘要 ---------- */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.panel {
+  min-width: 0; padding: 18px 19px; border: 1px solid var(--line); border-radius: var(--radius-lg);
+  background: rgba(255, 254, 250, .82); box-shadow: var(--shadow-sm);
+}
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.panel-head h3 { margin: 0; font-size: 13px; font-weight: 730; letter-spacing: -.015em; }
+.panel-head span { color: var(--muted-2); font-size: 9.5px; text-align: right; }
+.param-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.param-table th {
+  padding: 0 8px 7px; border-bottom: 1px solid var(--line);
+  color: var(--muted-2); font: 600 8.5px/1.2 var(--font-mono); letter-spacing: .1em; text-align: left;
+}
+.param-table th:nth-child(1) { width: 18%; }
+.param-table th:nth-child(2) { width: 42%; }
+.param-table th:nth-child(3) { width: 40%; text-align: right; }
+.param-table td { padding: 9px 8px; border-bottom: 1px solid rgba(221, 215, 201, .52); font-size: 11.5px; vertical-align: middle; }
+.param-table tr:last-child td { border-bottom: 0; }
+.param-symbol { color: var(--green); font: italic 600 15px/1 var(--font-serif); }
+.param-desc { color: var(--muted); font-size: 10.8px; }
+.param-value { color: var(--ink); font: 600 12px/1.4 var(--font-mono); text-align: right; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.summary-list { margin: 0; }
+.summary-row { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; padding: 7.5px 0; border-bottom: 1px solid rgba(221, 215, 201, .5); }
+.summary-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.summary-row dt { color: var(--muted); font-size: 10.8px; }
+.summary-row dd { margin: 0; color: var(--ink-2); font-size: 11px; font-weight: 620; text-align: right; overflow-wrap: anywhere; }
+.panel-note { margin: 12px 0 0; padding-top: 11px; border-top: 1px dashed var(--line); color: var(--warn); font-size: 10.5px; line-height: 1.55; }
+.caveat {
+  display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; padding: 13px 15px;
+  border: 1px solid var(--line); border-radius: 13px;
+  background: rgba(239, 235, 224, .55); color: var(--muted);
+}
+.caveat svg { width: 15px; height: 15px; flex: 0 0 15px; margin-top: 2px; color: var(--green); }
+.caveat p { margin: 0; font-size: 10.8px; line-height: 1.65; }
+.caveat strong { color: var(--ink-2); font-weight: 680; }
+
+/* ---------- 页脚 ---------- */
+.site-footer { margin-top: 52px; border-top: 1px solid var(--line); }
+.footer-inner { display: flex; align-items: flex-start; justify-content: space-between; gap: 30px; padding: 25px 0 36px; }
+.footer-brand { display: flex; align-items: center; gap: 10px; }
+.footer-brand .logo-mark { width: 30px; height: 30px; flex-basis: 30px; border-radius: 9px; box-shadow: none; }
+.footer-brand .logo-mark svg { width: 18px; height: 18px; }
+.footer-brand strong { display: block; font-size: 11.5px; font-weight: 700; }
+.footer-brand small { display: block; margin-top: 2px; color: var(--muted-2); font: 500 8px/1 var(--font-mono); letter-spacing: .18em; }
+.footer-copy { max-width: 520px; margin: 0; color: var(--muted-2); font-size: 10.5px; line-height: 1.7; text-align: right; }
+.footer-copy span { color: var(--ink-2); }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); z-index: 80;
+  display: flex; align-items: center; gap: 12px; width: max-content; max-width: min(92vw, 460px);
+  padding: 10px 11px 10px 15px; border: 1px solid rgba(217, 239, 154, .16); border-radius: 12px;
+  background: var(--green-deeper); color: #f2f7e8; box-shadow: 0 20px 45px rgba(13, 47, 39, .28);
+  font-size: 11.5px; line-height: 1.45; transform: translate(-50%, 14px); opacity: 0;
+  transition: opacity .24s ease, transform .24s ease; pointer-events: none;
+}
+.toast.is-visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast-message { min-width: 0; }
+.toast-action {
+  flex: 0 0 auto; min-height: 30px; padding: 5px 9px; border: 1px solid rgba(217, 239, 154, .25); border-radius: 7px;
+  background: rgba(217, 239, 154, .1); color: var(--mint); font-size: 10.5px; font-weight: 650; cursor: pointer;
+}
+.toast-action:hover { background: rgba(217, 239, 154, .18); }
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 1050px) {
+  .hero { grid-template-columns: 1fr; gap: 32px; padding-top: 46px; }
+  .flow-card { max-width: 680px; margin-inline: auto; }
+  .flow-plot { display: none; }
+  .flow-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 9px; }
+  .flow-step { align-items: flex-start; padding: 10px; border: 1px solid rgba(239, 246, 233, .09); border-radius: 10px; }
+  .flow-step-copy small { display: none; }
+  .flow-current { margin-top: 8px; }
+  .model-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .model-card { min-height: 150px; }
+  .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .section-head { align-items: flex-start; flex-direction: column; gap: 11px; }
+  .section-sub { max-width: 600px; text-align: left; }
+  .section-side { width: 100%; justify-content: space-between; }
+  .result-hero { grid-template-columns: 1fr; }
+  .r2-panel { border-left: 0; border-top: 1px solid rgba(243, 247, 233, .12); padding: 19px 25px 21px; }
+  .r2-value { font-size: 3rem; }
+  .r2-track { max-width: 260px; }
+  .detail-grid { grid-template-columns: 1fr; }
+  .chart-wrap { height: 390px; }
+}
+@media (max-width: 640px) {
+  .shell { width: min(100% - 36px, var(--shell)); }
+  .header-inner { height: 61px; }
+  .brand-name { font-size: 14px; }
+  .brand-sub { font-size: 7.5px; margin-top: 3px; }
+  .logo-mark { width: 34px; height: 34px; flex-basis: 34px; border-radius: 10px; }
+  .header-meta { gap: 6px; }
+  .privacy-pill { padding: 7px 9px; border-radius: 999px; font-size: 10.5px; }
+  .privacy-pill .privacy-full { display: none; }
+  .privacy-pill .privacy-short { display: inline; }
+  .ghost-btn { width: 36px; min-height: 36px; padding: 0; border-color: var(--line); }
+  .ghost-btn .btn-label { display: none; }
+  .hero { padding-top: 35px; padding-bottom: 35px; gap: 24px; }
+  .hero h1 { font-size: clamp(1.9rem, 10.2vw, 3.35rem); letter-spacing: -.06em; margin-bottom: 16px; }
+  .eyebrow { margin-bottom: 14px; font-size: 9.5px; letter-spacing: .13em; gap: 7px; }
+  .hero-lede { font-size: 14.2px; line-height: 1.72; margin-bottom: 20px; }
+  .hero-actions { gap: 8px; }
+  .btn { min-height: 44px; padding: 9px 14px; font-size: 12.5px; }
+  .hero-foot { margin-top: 16px; gap: 6px 9px; font-size: 10.5px; }
+  .flow-card { padding: 17px 15px 14px; border-radius: 20px; }
+  .flow-steps { gap: 5px; }
+  .flow-step { gap: 7px; padding: 8px 7px; }
+  .flow-num { width: 25px; height: 25px; flex-basis: 25px; font-size: 8.5px; }
+  .flow-step-copy strong { font-size: 10.5px; }
+  .flow-current { padding-top: 9px; }
+  .flow-current strong { font-size: 10.5px; }
+  .section { padding-top: 26px; }
+  .section-head { margin-bottom: 16px; padding-top: 18px; gap: 9px; }
+  .section-heading { gap: 9px; }
+  .section-head h2 { font-size: 1.3rem; }
+  .section-index { min-width: 39px; height: 22px; font-size: 8px; }
+  .section-sub { font-size: 11.5px; }
+  .model-grid { gap: 8px; }
+  .model-card { min-height: 144px; padding: 12px; border-radius: 14px; }
+  .model-glyph { width: 45px; height: 28px; }
+  .model-name { font-size: 13px; margin-top: 7px; }
+  .model-desc { font-size: 9.5px; }
+  .model-formula { font-size: 10.5px; padding-top: 8px; line-height: 1.45; }
+  .model-check { width: 17px; height: 17px; flex-basis: 17px; }
+  .model-hint { margin-top: 10px; padding: 10px 11px; }
+  .model-hint p { font-size: 10.5px; }
+  .data-toolbar { align-items: flex-start; flex-direction: column; gap: 9px; padding: 12px 13px; }
+  .data-label { width: 100%; justify-content: space-between; }
+  .toolbar-actions { width: 100%; justify-content: flex-start; }
+  .subtle-btn { min-height: 32px; padding: 5px 8px; }
+  .paste-panel { padding: 13px; }
+  .paste-panel textarea { min-height: 104px; font-size: 16px; }
+  .table-wrap { max-height: 430px; }
+  .point-table th:first-child, .point-table td:first-child { width: 41px; padding-left: 12px; }
+  .point-table th:last-child, .point-table td:last-child { width: 42px; padding-right: 8px; }
+  .point-table td { padding: 6px 5px; }
+  .point-table th { padding: 8px 5px; }
+  .point-input { height: 42px; padding: 8px 9px; font-size: 16px; }
+  .row-delete { width: 36px; height: 36px; }
+  .table-foot { align-items: flex-start; flex-direction: column; padding: 10px 13px; gap: 7px; }
+  .table-hint { text-align: left; font-size: 10px; }
+  .axis-fields { grid-template-columns: 1fr; padding: 0 13px 13px; }
+  .data-warning { margin: 0 13px 11px; padding: 9px 10px; font-size: 10.5px; }
+  .empty-state { padding: 31px 17px 28px; }
+  .empty-art { width: 130px; height: 86px; }
+  .empty-state h3 { font-size: 17px; }
+  .empty-state p { font-size: 11.5px; }
+  .result-copy { padding: 20px 18px 19px; }
+  .result-kicker { margin-bottom: 10px; }
+  .equation { font-size: clamp(1.28rem, 6.4vw, 1.7rem); line-height: 1.45; }
+  .equation-note { font-size: 10px; }
+  .result-actions { margin-top: 16px; gap: 6px; }
+  .btn-on-dark { min-height: 37px; padding: 6px 10px; font-size: 10.5px; }
+  .r2-panel { padding: 16px 18px 18px; }
+  .r2-value { font-size: 2.8rem; }
+  .r2-track { margin-top: 11px; }
+  .chart-card { margin-top: 11px; padding: 12px 11px 10px; border-radius: 17px; }
+  .chart-head { gap: 8px; }
+  .chart-tab { min-height: 31px; padding: 5px 9px; font-size: 10.5px; }
+  .chart-tools { gap: 7px; }
+  .chart-note { display: none; }
+  .chart-export { min-height: 31px; font-size: 10px; }
+  .chart-legend { margin-top: 8px; gap: 11px; font-size: 10px; }
+  .chart-wrap { height: 322px; }
+  .chart-mobile-hint { display: block; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 11px; }
+  .stat-card { padding: 11px 11px 9px; }
+  .stat-label { font-size: 10px; }
+  .stat-value { font-size: 1.1rem; }
+  .stat-hint { font-size: 9px; }
+  .detail-grid { margin-top: 11px; gap: 11px; }
+  .panel { padding: 15px 14px; }
+  .caveat { margin-top: 11px; padding: 11px 12px; }
+  .site-footer { margin-top: 38px; }
+  .footer-inner { flex-direction: column; gap: 14px; padding: 20px 0 28px; }
+  .footer-copy { text-align: left; font-size: 10px; }
+  .toast { max-width: calc(100vw - 28px); padding: 10px 10px 10px 13px; font-size: 11px; }
+}
+@media (max-width: 370px) {
+  .eyebrow { font-size: 8.8px; letter-spacing: .09em; }
+  .flow-step { gap: 5px; padding: 8px 5px; }
+  .flow-num { width: 23px; height: 23px; flex-basis: 23px; }
+  .flow-step-copy strong { font-size: 9.5px; }
+  .model-grid { grid-template-columns: 1fr; }
+  .model-card { min-height: 126px; }
+  .model-formula { font-size: 11px; }
+  .section-side { align-items: flex-start; flex-direction: column; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .chart-wrap { height: 300px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+</style>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">跳到主要内容</a>
+<noscript><div class="noscript">本工具需要启用 JavaScript 才能完成拟合。请允许浏览器运行脚本后刷新页面。</div></noscript>
+
+<header class="site-header">
+  <div class="shell header-inner">
+    <a class="brand" href="#top" aria-label="拟合实验室首页">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M4 19.5V4.5M4 19.5h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M6.4 16.4c2.3 0 3-2 4.3-5.4C12 8.1 13.3 6 15.1 6c1.5 0 2.4 1.1 3.2 3.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          <circle cx="7" cy="15.5" r="1.15" fill="currentColor"/>
+          <circle cx="13.1" cy="8.2" r="1.15" fill="currentColor"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">拟合实验室</span>
+        <span class="brand-sub">FITLAB · DATA FITTING</span>
+      </span>
+    </a>
+    <div class="header-meta">
+      <span class="privacy-pill" title="数据只在浏览器本地计算" aria-label="数据只在浏览器本地计算">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <rect x="3" y="7" width="10" height="7" rx="2" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M5.4 7V5.4a2.6 2.6 0 0 1 5.2 0V7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+        <span class="privacy-full">数据只在本地计算</span>
+        <span class="privacy-short">本地计算</span>
+      </span>
+      <button class="ghost-btn" id="resetBtn" type="button" title="清空模型与数据" aria-label="重新开始，清空模型与数据">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M13 8a5 5 0 1 1-1.5-3.55" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M13 2.8V5.6h-2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="btn-label">重新开始</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero shell" aria-labelledby="hero-title">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="eyebrow-dot"></span>BIVARIATE CURVE FITTING · 双变量数据拟合</p>
+      <h1 id="hero-title">让散点，<br><span class="headline-line">连成<span class="mark">有依据的曲线</span>。</span></h1>
+      <p class="hero-lede">从 8 种常用回归方程中选择模型，输入实验数据，自动得到<strong>拟合方程、R²、误差指标与残差图</strong>。无需上传，离线可用。</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#model-section">
+          选择回归模型
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.8v9.4M4.2 8.6 8 12.4l3.8-3.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <button class="btn btn-ghost" id="heroSampleBtn" type="button">
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 12.8V3.2M3 12.8h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.5 10.3c2.4 0 3-2.3 4.5-4.8 1-1.7 1.8-2.3 3.8-2.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          载入示例数据
+        </button>
+      </div>
+      <div class="hero-foot">
+        <span><svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="m2 6.2 2.4 2.4L10 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>无需注册</span>
+        <i></i>
+        <span><svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="m2 6.2 2.4 2.4L10 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>数据不上传</span>
+        <i></i>
+        <span><svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="m2 6.2 2.4 2.4L10 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>手机可用</span>
+      </div>
+    </div>
+
+    <aside class="flow-card" aria-label="拟合流程">
+      <div class="flow-head">
+        <span class="flow-label">FIT WORKFLOW</span>
+        <span class="flow-local"><i></i>本地运行</span>
+      </div>
+      <div class="flow-plot" aria-hidden="true">
+        <svg viewBox="0 0 310 112" fill="none">
+          <path d="M18 10v86h276" stroke="#d9ef9a" stroke-opacity=".15" stroke-width="1"/>
+          <path d="M40 33h238M40 55h238M40 77h238M72 18v78M130 18v78M188 18v78M246 18v78" stroke="#d9ef9a" stroke-opacity=".08" stroke-width="1" stroke-dasharray="3 5"/>
+          <path d="M30 86c37 0 55-12 78-35 19-19 32-29 54-31 36-3 66 5 118 13" stroke="#d9ef9a" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="57" cy="73" r="3.2" fill="#e26943" stroke="#103c32" stroke-width="1.5"/>
+          <circle cx="114" cy="48" r="3.2" fill="#e26943" stroke="#103c32" stroke-width="1.5"/>
+          <circle cx="161" cy="24" r="3.2" fill="#e26943" stroke="#103c32" stroke-width="1.5"/>
+          <circle cx="218" cy="24" r="3.2" fill="#e26943" stroke="#103c32" stroke-width="1.5"/>
+          <circle cx="268" cy="32" r="3.2" fill="#e26943" stroke="#103c32" stroke-width="1.5"/>
+          <text x="35" y="105" fill="#d9ef9a" fill-opacity=".45" font-family="monospace" font-size="7">x</text>
+          <text x="4" y="20" fill="#d9ef9a" fill-opacity=".45" font-family="monospace" font-size="7">y</text>
+        </svg>
+      </div>
+      <ol class="flow-steps">
+        <li class="flow-step is-active" data-flow-step="1">
+          <span class="flow-num"><span class="num-text">01</span><svg class="check-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.2 8.4 3 3L12.8 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="flow-step-copy"><strong>选择模型</strong><small>8 种常用回归方程</small></span>
+        </li>
+        <li class="flow-step" data-flow-step="2">
+          <span class="flow-num"><span class="num-text">02</span><svg class="check-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.2 8.4 3 3L12.8 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="flow-step-copy"><strong>输入数据</strong><small>表格或批量粘贴</small></span>
+        </li>
+        <li class="flow-step" data-flow-step="3">
+          <span class="flow-num"><span class="num-text">03</span><svg class="check-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.2 8.4 3 3L12.8 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="flow-step-copy"><strong>读取结果</strong><small>方程 · R² · 残差</small></span>
+        </li>
+      </ol>
+      <div class="flow-current"><span>当前任务</span><strong id="flowCurrent">选择一个回归模型</strong></div>
+    </aside>
+  </section>
+
+  <section class="section shell" id="model-section" aria-labelledby="model-title">
+    <div class="section-head">
+      <div class="section-heading">
+        <span class="section-index">STEP 01</span>
+        <h2 id="model-title">选择回归模型</h2>
+      </div>
+      <div class="section-side">
+        <p class="section-sub">先按实验原理判断趋势；不确定时，可以切换模型比较 R²。</p>
+        <span class="status-chip" id="modelStatusChip">未选择</span>
+      </div>
+    </div>
+    <div class="model-grid" id="modelGrid" role="group" aria-label="常见回归模型"></div>
+    <div class="model-hint">
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.3"/><path d="M8 7.2v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="4.7" r=".9" fill="currentColor"/></svg>
+      <p id="modelHint"><strong>怎么选？</strong>均匀变化选线性；明显弯曲选二次；快速增减选指数；先快后慢选对数；饱和趋势选双曲线。选好后，下方会显示该模型的取值要求。</p>
+    </div>
+  </section>
+
+  <section class="section shell" id="data-section" aria-labelledby="data-title">
+    <div class="section-head">
+      <div class="section-heading">
+        <span class="section-index">STEP 02</span>
+        <h2 id="data-title">输入实验数据</h2>
+      </div>
+      <div class="section-side">
+        <p class="section-sub">每行是一组 (x, y)。也可以直接从 Excel 复制两列数据粘贴进来。</p>
+        <span class="status-chip" id="dataStatusChip">等待数据</span>
+      </div>
+    </div>
+
+    <div class="data-card">
+      <div class="data-toolbar">
+        <div class="data-label"><strong>数据表</strong><span id="dataSummary">0 组有效数据</span></div>
+        <div class="toolbar-actions">
+          <button class="subtle-btn" id="pasteToggle" type="button" aria-expanded="false" aria-controls="pastePanel">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4.5" y="4.5" width="8" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M6.2 4.5V3.7A1.7 1.7 0 0 1 7.9 2h2.4a1.7 1.7 0 0 1 1.7 1.7v6.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            批量粘贴
+          </button>
+          <button class="subtle-btn" id="sampleBtn" type="button" title="按当前模型生成一组演示数据">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 12.5V3.5M3 12.5h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.5 10.2c2.2 0 2.8-2.1 4.2-4.5.9-1.5 1.7-2.1 3.5-2.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            载入示例
+          </button>
+          <button class="subtle-btn" id="clearBtn" type="button">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 4.5h9M6 4.5V3.2h4v1.3M5 4.5l.5 8h5l.5-8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            清空
+          </button>
+        </div>
+      </div>
+
+      <div class="paste-panel" id="pastePanel" hidden>
+        <label for="bulkInput">批量粘贴数据（每行一组，支持逗号、空格或 Tab 分隔）</label>
+        <textarea id="bulkInput" spellcheck="false" placeholder="x, y&#10;1, 2.4&#10;2, 6.1&#10;3, 13.8&#10;4, 24.2"></textarea>
+        <div class="paste-foot">
+          <small>解析后会替换当前表格；空行、表头和 # 注释行会被忽略。</small>
+          <button class="btn-small" id="parseBtn" type="button">解析并填入</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="point-table" aria-label="实验数据表">
+          <thead><tr><th scope="col">#</th><th scope="col">x</th><th scope="col">y</th><th scope="col"><span class="sr-only">操作</span></th></tr></thead>
+          <tbody id="pointBody"></tbody>
+        </table>
+      </div>
+
+      <div class="data-warning" id="dataWarning" hidden>
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.4 14 13H2L8 2.4Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 6.2v3.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11.3" r=".8" fill="currentColor"/></svg>
+        <span id="dataWarningText"></span>
+      </div>
+
+      <div class="table-foot">
+        <button class="add-row" id="addRowBtn" type="button">
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3.2v9.6M3.2 8h9.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          添加数据点
+        </button>
+        <p class="table-hint" id="dataHint">选择模型后，这里会显示数据要求。</p>
+      </div>
+
+      <details class="chart-settings">
+        <summary>图表与坐标轴设置 <span>可选</span></summary>
+        <div class="axis-fields">
+          <div class="axis-field">
+            <label for="xLabelInput">x 轴名称</label>
+            <input id="xLabelInput" type="text" value="x" maxlength="24" autocomplete="off" placeholder="例如：浓度 / mg·L⁻¹">
+          </div>
+          <div class="axis-field">
+            <label for="yLabelInput">y 轴名称</label>
+            <input id="yLabelInput" type="text" value="y" maxlength="24" autocomplete="off" placeholder="例如：吸光度 A">
+          </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section class="section results-section shell" id="result-section" aria-labelledby="result-title">
+    <div class="section-head">
+      <div class="section-heading">
+        <span class="section-index">STEP 03</span>
+        <h2 id="result-title">拟合结果</h2>
+      </div>
+      <div class="section-side">
+        <p class="section-sub">数据和模型齐备后自动拟合；每次修改都会实时更新。</p>
+        <span class="status-chip" id="resultStatusChip">等待拟合</span>
+      </div>
+    </div>
+
+    <div class="empty-state" id="resultEmpty">
+      <div class="empty-art" aria-hidden="true">
+        <svg viewBox="0 0 164 106" fill="none">
+          <path d="M20 12v76h128" stroke="#173b32" stroke-opacity=".22" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M38 31h104M38 56h104M38 81h104M58 22v66M90 22v66M122 22v66" stroke="#173b32" stroke-opacity=".08" stroke-width="1" stroke-dasharray="3 5"/>
+          <path d="M38 82c22 0 32-8 47-30 12-18 20-25 34-27 11-2 18 0 29 4" stroke="#173b32" stroke-opacity=".23" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 7"/>
+          <circle cx="53" cy="74" r="4" fill="#d9ef9a" stroke="#173b32" stroke-opacity=".45" stroke-width="1.5"/>
+          <circle cx="82" cy="57" r="4" fill="#d9ef9a" stroke="#173b32" stroke-opacity=".45" stroke-width="1.5"/>
+          <circle cx="112" cy="35" r="4" fill="#d9ef9a" stroke="#173b32" stroke-opacity=".45" stroke-width="1.5"/>
+          <circle cx="142" cy="29" r="4" fill="#d9ef9a" stroke="#173b32" stroke-opacity=".45" stroke-width="1.5"/>
+          <circle cx="142" cy="29" r="9" stroke="#e26943" stroke-opacity=".35" stroke-width="1.5"/>
+          <text x="134" y="95" fill="#173b32" fill-opacity=".35" font-family="monospace" font-size="9">x</text>
+          <text x="7" y="26" fill="#173b32" fill-opacity=".35" font-family="monospace" font-size="9">y</text>
+        </svg>
+      </div>
+      <span class="empty-kicker">WAITING FOR DATA</span>
+      <h3 id="emptyTitle">先选择一个回归模型</h3>
+      <p id="emptyDesc">在上方挑选一种方程，再输入至少 3 组实验数据，拟合结果会自动出现在这里。</p>
+      <div class="empty-tips" aria-hidden="true"><span>选择模型</span><i></i><span>输入数据</span><i></i><span>自动拟合</span></div>
+    </div>
+
+    <div class="result-content" id="resultContent" hidden>
+      <div class="result-hero">
+        <div class="result-copy">
+          <div class="result-kicker">
+            <span class="model-badge" id="modelBadge">线性回归</span>
+            <span class="method-badge" id="methodBadge">OLS</span>
+            <span class="quality-badge" id="qualityBadge" data-level="none">拟合优度</span>
+          </div>
+          <p class="equation" id="equation"></p>
+          <p class="equation-note" id="equationNote"></p>
+          <div class="result-actions">
+            <button class="btn-on-dark is-primary" id="copyBtn" type="button">
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.4" y="5.4" width="8" height="8" rx="1.6" stroke="currentColor" stroke-width="1.3"/><path d="M10.6 5.4V4A1.6 1.6 0 0 0 9 2.4H4A1.6 1.6 0 0 0 2.4 4v5A1.6 1.6 0 0 0 4 10.6h1.4" stroke="currentColor" stroke-width="1.3"/></svg>
+              复制结果
+            </button>
+            <button class="btn-on-dark" id="exportCsvBtn" type="button">
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.5v7.2M5.2 7l2.8 2.8L10.8 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 11.5v1.2h10v-1.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              导出数据 CSV
+            </button>
+          </div>
+        </div>
+        <div class="r2-panel">
+          <span class="r2-label">R<sup>2</sup> · 决定系数</span>
+          <strong class="r2-value" id="r2Value">—</strong>
+          <span class="r2-meta" id="r2Meta">等待拟合</span>
+          <div class="r2-track" aria-hidden="true"><span class="r2-fill" id="r2Fill"></span></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <div class="chart-tabs" role="tablist" aria-label="图表视图">
+            <button class="chart-tab" id="fitTab" type="button" role="tab" aria-selected="true" aria-controls="chartWrap" data-view="fit">拟合曲线</button>
+            <button class="chart-tab" id="residualTab" type="button" role="tab" aria-selected="false" aria-controls="chartWrap" data-view="residual">残差图</button>
+          </div>
+          <div class="chart-tools">
+            <span class="chart-note" id="chartNote">共 0 个数据点</span>
+            <button class="chart-export" id="chartExportBtn" type="button">
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 10.5V2.8M5.3 5.5 8 2.8l2.7 2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 9.8v2.7h10V9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              导出 PNG
+            </button>
+          </div>
+        </div>
+        <div class="chart-legend" id="chartLegend"></div>
+        <div class="chart-wrap" id="chartWrap">
+          <canvas id="chartCanvas" role="img" aria-label="拟合曲线图"></canvas>
+          <div class="chart-tip" id="chartTip" hidden></div>
+        </div>
+        <p class="chart-mobile-hint">轻触数据点可查看拟合值与残差</p>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">R<sup>2</sup></div><div class="stat-value" id="statR2">—</div><div class="stat-hint">越接近 1 越好</div></div>
+        <div class="stat-card"><div class="stat-label">校正 R<sup>2</sup></div><div class="stat-value" id="statAdjR2">—</div><div class="stat-hint">惩罚参数个数</div></div>
+        <div class="stat-card"><div class="stat-label">RMSE</div><div class="stat-value" id="statRmse">—</div><div class="stat-hint">均方根误差</div></div>
+        <div class="stat-card"><div class="stat-label">MAE</div><div class="stat-value" id="statMae">—</div><div class="stat-hint">平均绝对误差</div></div>
+        <div class="stat-card"><div class="stat-label">SSE</div><div class="stat-value" id="statSse">—</div><div class="stat-hint">残差平方和</div></div>
+        <div class="stat-card"><div class="stat-label">n</div><div class="stat-value" id="statN">—</div><div class="stat-hint">有效数据点</div></div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="panel">
+          <div class="panel-head"><h3>参数估计</h3><span>最小二乘估计值</span></div>
+          <table class="param-table" aria-label="拟合参数">
+            <thead><tr><th scope="col">符号</th><th scope="col">含义</th><th scope="col">估计值</th></tr></thead>
+            <tbody id="paramBody"></tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>拟合摘要</h3><span id="summaryModel">—</span></div>
+          <dl class="summary-list" id="summaryList"></dl>
+          <p class="panel-note" id="panelNote" hidden></p>
+        </div>
+      </div>
+
+      <div class="caveat">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.3"/><path d="M8 7.2v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="4.7" r=".9" fill="currentColor"/></svg>
+        <p><strong>写报告前留意：</strong>R² 高不代表模型一定正确，请结合实验机理选择方程。非线性模型（如指数、幂函数）采用变量变换后拟合，R² 与误差指标已还原到原始 y 尺度计算。</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="shell footer-inner">
+    <div class="footer-brand">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M4 19.5V4.5M4 19.5h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M6.4 16.4c2.3 0 3-2 4.3-5.4C12 8.1 13.3 6 15.1 6c1.5 0 2.4 1.1 3.2 3.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          <circle cx="7" cy="15.5" r="1.15" fill="currentColor"/>
+        </svg>
+      </span>
+      <div><strong>拟合实验室 FITLAB</strong><small>BIVARIATE DATA FITTING</small></div>
+    </div>
+    <p class="footer-copy"><span>所有计算均在浏览器本地完成，不会上传任何数据。</span><br>单文件离线工具 · 适配电脑与手机 · 适用于实验报告与课堂演示</p>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden>
+  <span class="toast-message" id="toastMessage"></span>
+  <button class="toast-action" id="toastAction" type="button" hidden></button>
+</div>
+<div class="sr-only" id="liveStatus" aria-live="polite"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ==========================================================
+     基础工具
+     ========================================================== */
+  const MINUS = "\u2212";
+  const SUP = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "-": "⁻", "+": "⁺", ".": "·" };
+
+  function clamp(n, min, max) { return Math.min(max, Math.max(min, n)); }
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  }
+  function toSuperscript(text) {
+    return String(text).split("").map(ch => SUP[ch] || ch).join("");
+  }
+  function trimZeros(text) {
+    if (!text.includes(".")) return text;
+    return text.replace(/(\.\d*?[1-9])0+$/g, "$1").replace(/\.0+$/g, "");
+  }
+  function formatNum(value, sig = 5) {
+    if (value == null || !Number.isFinite(value)) return "—";
+    if (Object.is(value, -0)) value = 0;
+    if (value === 0) return "0";
+    const abs = Math.abs(value);
+    const sign = value < 0 ? MINUS : "";
+    if (abs >= 1e5 || abs < 1e-4) {
+      const exp = Math.floor(Math.log10(abs));
+      const mant = abs / Math.pow(10, exp);
+      const mantStr = trimZeros(Number(mant.toPrecision(Math.max(2, sig - 1))).toString());
+      return sign + mantStr + "×10" + toSuperscript(String(exp));
+    }
+    return sign + trimZeros(Number(abs.toPrecision(sig)).toString());
+  }
+  function formatR2(value) {
+    if (value == null || !Number.isFinite(value)) return "—";
+    const four = value.toFixed(4);
+    const result = four === "1.0000" && value < 1 ? value.toFixed(5) : four;
+    return result.replace("-", MINUS);
+  }
+  function formatCoefficient(value) {
+    if (value == null || !Number.isFinite(value)) return "—";
+    return Math.abs(value) < 1e-12 ? "0" : formatNum(value, 6);
+  }
+  function eqNumber(value) {
+    if (!Number.isFinite(value)) return { html: "—", text: "—" };
+    if (value === 0) return { html: "0", text: "0" };
+    const abs = Math.abs(value);
+    const signTxt = value < 0 ? MINUS : "";
+    if (abs >= 1e5 || abs < 1e-4) {
+      const exp = Math.floor(Math.log10(abs));
+      const mant = abs / Math.pow(10, exp);
+      const mantStr = trimZeros(Number(mant.toPrecision(4)).toString());
+      return {
+        html: signTxt + '<span class="eq-num">' + mantStr + '×10<sup>' + String(exp).replace("-", MINUS) + "</sup></span>",
+        text: signTxt + mantStr + "×10" + toSuperscript(String(exp))
+      };
+    }
+    const num = trimZeros(Number(abs.toPrecision(5)).toString());
+    return { html: '<span class="eq-num">' + (value < 0 ? MINUS : "") + num + "</span>", text: signTxt + num };
+  }
+  function formatSupNumber(value) {
+    if (!Number.isFinite(value)) return "—";
+    const abs = Math.abs(value);
+    if (abs >= 1e5 || (abs > 0 && abs < 1e-3)) {
+      const exp = Math.floor(Math.log10(abs));
+      const mant = trimZeros(Number((abs / Math.pow(10, exp)).toPrecision(3)).toString());
+      return (value < 0 ? MINUS : "") + mant + "×10" + toSuperscript(String(exp));
+    }
+    return (value < 0 ? MINUS : "") + trimZeros(Number(abs.toPrecision(5)).toString());
+  }
+  function axisNumber(value, step) {
+    if (!Number.isFinite(value)) return "";
+    if (value === 0) return "0";
+    const abs = Math.abs(value);
+    if (abs >= 1e6 || abs < 1e-4) {
+      return value.toExponential(1).replace("e+", "e").replace("e-", "e" + MINUS);
+    }
+    let decimals = 0;
+    const stepStr = String(Number(step.toPrecision(8)));
+    if (stepStr.includes(".")) decimals = Math.min(6, stepStr.split(".")[1].length);
+    return trimZeros(value.toFixed(decimals));
+  }
+
+  /* ==========================================================
+     数值：最小二乘与模型
+     ========================================================== */
+  function qrLeastSquares(A, b) {
+    const m = A.length;
+    const n = A[0].length;
+    if (m < n) return null;
+    const R = A.map(row => row.slice());
+    const y = b.slice();
+
+    for (let k = 0; k < n; k++) {
+      let norm2 = 0;
+      for (let i = k; i < m; i++) norm2 += R[i][k] * R[i][k];
+      const norm = Math.sqrt(norm2);
+      if (!(norm > 1e-13)) return null;
+      const alpha = R[k][k] > 0 ? -norm : norm;
+      const v = new Array(m).fill(0);
+      for (let i = k; i < m; i++) v[i] = R[i][k];
+      v[k] -= alpha;
+      let vnorm2 = 0;
+      for (let i = k; i < m; i++) vnorm2 += v[i] * v[i];
+      if (vnorm2 > 1e-30) {
+        const fac = 2 / vnorm2;
+        for (let j = k; j < n; j++) {
+          let dot = 0;
+          for (let i = k; i < m; i++) dot += v[i] * R[i][j];
+          dot *= fac;
+          for (let i = k; i < m; i++) R[i][j] -= dot * v[i];
+        }
+        let dotb = 0;
+        for (let i = k; i < m; i++) dotb += v[i] * y[i];
+        dotb *= fac;
+        for (let i = k; i < m; i++) y[i] -= dotb * v[i];
+      }
+    }
+
+    const x = new Array(n).fill(0);
+    for (let i = n - 1; i >= 0; i--) {
+      let sum = y[i];
+      for (let j = i + 1; j < n; j++) sum -= R[i][j] * x[j];
+      if (Math.abs(R[i][i]) < 1e-11) return null;
+      x[i] = sum / R[i][i];
+    }
+    return x.every(Number.isFinite) ? x : null;
+  }
+
+  /**
+   * 线性参数模型：对特征列做中心化 / 标准化后求解，再把系数还原。
+   * featureFns 只接收 x；targetFn 接收数据点。
+   */
+  function fitLS(points, featureFns, targetFn) {
+    const n = points.length;
+    const target = points.map(targetFn);
+    if (target.some(v => !Number.isFinite(v))) throw new Error("数据无法进行模型要求的变量变换，请检查数值范围。");
+    const cols = featureFns.map(fn => points.map(p => fn(p.x)));
+    if (cols.some(col => col.some(v => !Number.isFinite(v)))) throw new Error("数据无法进行模型要求的变量变换，请检查数值范围。");
+
+    const means = [];
+    const scales = [];
+    for (const col of cols) {
+      let mean = 0;
+      for (const v of col) mean += v;
+      mean /= n;
+      let variance = 0;
+      for (const v of col) variance += (v - mean) * (v - mean);
+      variance /= n;
+      const scale = Math.sqrt(variance);
+      if (!(scale > 1e-12)) throw new Error("x 值变化不足（可能全部相同），无法估计该模型的参数。");
+      means.push(mean);
+      scales.push(scale);
+    }
+
+    const design = points.map((_, i) => {
+      const row = [1];
+      for (let j = 0; j < cols.length; j++) row.push((cols[j][i] - means[j]) / scales[j]);
+      return row;
+    });
+    const betaZ = qrLeastSquares(design, target);
+    if (!betaZ) throw new Error("数据点之间存在共线性，无法唯一确定参数。请增加 x 的不同取值。");
+
+    const beta = new Array(cols.length + 1).fill(0);
+    beta[0] = betaZ[0];
+    for (let j = 0; j < cols.length; j++) {
+      beta[0] -= betaZ[j + 1] * means[j] / scales[j];
+      beta[j + 1] = betaZ[j + 1] / scales[j];
+    }
+    if (beta.some(v => !Number.isFinite(v))) throw new Error("拟合参数超出数值范围，请检查数据量级。");
+    return beta;
+  }
+
+  function sumEquation(terms) {
+    const usable = terms.filter(t => Number.isFinite(t.value) && !(Math.abs(t.value) < 1e-12 && terms.length > 1));
+    if (!usable.length) return { html: "0", text: "0" };
+    let html = "";
+    let text = "";
+    let added = false;
+    for (const t of usable) {
+      const neg = t.value < 0;
+      const absValue = Math.abs(t.value);
+      const body = t.body || "";
+      const textBody = t.textBody || "";
+      const showUnit = body && !body.trim().startsWith("/") && Math.abs(absValue - 1) < 1e-12;
+      const bodyHtml = showUnit ? body.trim() : eqNumber(absValue).html + body;
+      const bodyText = showUnit ? textBody.trim() : eqNumber(absValue).text + textBody;
+      if (!added) {
+        html += (neg ? MINUS : "") + bodyHtml;
+        text += (neg ? MINUS : "") + bodyText;
+        added = true;
+      } else {
+        html += " " + (neg ? MINUS : "+") + " " + bodyHtml;
+        text += " " + (neg ? MINUS : "+") + " " + bodyText;
+      }
+    }
+    return { html, text };
+  }
+
+  const MODELS = {
+    linear: {
+      id: "linear",
+      name: "线性回归",
+      desc: "一次函数 · 直线",
+      formulaHtml: "y = a + bx",
+      formulaText: "y = a + bx",
+      p: 2,
+      minN: 3,
+      method: "普通最小二乘（OLS）",
+      requirement: "无特殊取值限制",
+      hint: "x 与 y 近似按固定速率变化",
+      icon: `<svg viewBox="0 0 60 36" fill="none" aria-hidden="true"><path d="M5 32h51M7 32V4" stroke="currentColor" stroke-opacity=".22" stroke-width="1.1" stroke-linecap="round"/><path d="M7 28 53 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="24.5" r="2.2" fill="currentColor"/><circle cx="28" cy="21" r="2.2" fill="currentColor"/><circle cx="39" cy="14.5" r="2.2" fill="currentColor"/><circle cx="49" cy="10.5" r="2.2" fill="currentColor"/></svg>`,
+      paramInfo: [{ symbol: "a", desc: "截距" }, { symbol: "b", desc: "斜率" }],
+      fit(points) {
+        const c = fitLS(points, [p => p], p => p.y);
+        return { a: c[0], b: c[1] };
+      },
+      predict(c, x) { return c.a + c.b * x; },
+      equation(c) {
+        return { y: true, ...sumEquation([{ value: c.a }, { value: c.b, body: "<i>x</i>", textBody: "x" }]) };
+      }
+    },
+    quadratic: {
+      id: "quadratic",
+      name: "二次多项式",
+      desc: "抛物线 · 弯曲趋势",
+      formulaHtml: "y = a + bx + cx<sup>2</sup>",
+      formulaText: "y = a + bx + cx^2",
+      p: 3,
+      minN: 4,
+      method: "普通最小二乘（OLS）",
+      requirement: "无特殊取值限制",
+      hint: "趋势明显弯曲，存在一个极值",
+      icon: `<svg viewBox="0 0 60 36" fill="none" aria-hidden="true"><path d="M5 32h51M7 32V4" stroke="currentColor" stroke-opacity=".22" stroke-width="1.1" stroke-linecap="round"/><path d="M8 7C17 39 39 39 53 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="15" cy="22" r="2.2" fill="currentColor"/><circle cx="30" cy="29" r="2.2" fill="currentColor"/><circle cx="45" cy="21" r="2.2" fill="currentColor"/></svg>`,
+      paramInfo: [{ symbol: "a", desc: "常数项" }, { symbol: "b", desc: "一次项系数" }, { symbol: "c", desc: "二次项系数" }],
+      fit(points) {
+        const c = fitLS(points, [p => p, p => p * p], p => p.y);
+        return { a: c[0], b: c[1], c: c[2] };
+      },
+      predict(c, x) { return c.a + c.b * x + c.c * x * x; },
+      equation(c) {
+        return { y: true, ...sumEquation([
+          { value: c.a },
+          { value: c.b, body: "<i>x</i>", textBody: "x" },
+          { value: c.c, body: "<i>x</i><sup>2</sup>", textBody: "x^2" }
+        ]) };
+      }
+    },
+    cubic: {
+      id: "cubic",
+      name: "三次多项式",
+      desc: "三次曲线 · 复杂弯曲",
+      formulaHtml: "y = a + bx + cx<sup>2</sup> + dx<sup>3</sup>",
+      formulaText: "y = a + bx + cx^2 + dx^3",
+      p: 4,
+      minN: 5,
+      method: "普通最小二乘（OLS）",
+      requirement: "无特殊取值限制",
+      hint: "趋势出现两次转向，或弯曲较复杂",
+      icon: `<svg viewBox="0 0 60 36" fill="none" aria-hidden="true"><path d="M5 32h51M7 32V4" stroke="currentColor" stroke-opacity=".22" stroke-width="1.1" stroke-linecap="round"/><path d="M8 27c10-24 18 12 27-4 7-13 12-4 18-1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="15" cy="18" r="2.1" fill="currentColor"/><circle cx="29" cy="25" r="2.1" fill="currentColor"/><circle cx="44" cy="12" r="2.1" fill="currentColor"/></svg>`,
+      paramInfo: [{ symbol: "a", desc: "常数项" }, { symbol: "b", desc: "一次项系数" }, { symbol: "c", desc: "二次项系数" }, { symbol: "d", desc: "三次项系数" }],
+      fit(points) {
+        const c = fitLS(points, [p => p, p => p * p, p => p * p * p], p => p.y);
+        return { a: c[0], b: c[1], c: c[2], d: c[3] };
+      },
+      predict(c, x) { return c.a + c.b * x + c.c * x * x + c.d * x * x * x; },
+      equation(c) {
+        return { y: true, ...sumEquation([
+          { value: c.a },
+          { value: c.b, body: "<i>x</i>", textBody: "x" },
+          { value: c.c, body: "<i>x</i><sup>2</sup>", textBody: "x^2" },
+          { value: c.d, body: "<i>x</i><sup>3</sup>", textBody: "x^3" }
+        ]) };
+      }
+    },
+    exponential: {
+      id: "exponential",
+      name: "指数回归",
+      desc: "等比变化 · 增长 / 衰减",
+      formulaHtml: "y = a·e<sup>bx</sup>",
+      formulaText: "y = a·e^(bx)",
+      p: 2,
+      minN: 3,
+      method: "对数变换 + OLS",
+      requirement: "所有 y 必须大于 0",
+      hint: "变化率与当前值成正比，快速增减",
+      icon: `<svg viewBox="0 0 60 36" fill="none" aria-hidden="true"><path d="M5 32h51M7 32V4" stroke="currentColor" stroke-opacity=".22" stroke-width="1.1" stroke-linecap="round"/><path d="M8 29c14 0 27-8 36-19 3-4 5-5 7-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="17" cy="27" r="2.2" fill="currentColor"/><circle cx="30" cy="21" r="2.2" fill="currentColor"/><circle cx="44" cy="10" r="2.2" fill="currentColor"/></svg>`,
+      paramInfo: [{ symbol: "a", desc: "前置系数" }, { symbol: "b", desc: "指数变化率" }],
+      fit(points) {
+        const c = fitLS(points, [p => p], p => Math.log(p.y));
+        const a = Math.exp(c[0]);
+        if (!Number.isFinite(a)) throw new Error("指数模型的系数超出数值范围，请检查 y 的量级。");
+        return { a, b: c[1] };
+      },
+      predict(c, x) { return c.a * Math.exp(c.b * x); },
+      equation(c) {
+        const b = c.b;
+        const bTxt = formatSupNumber(b);
+        return {
+          y: true,
+          html: eqNumber(c.a).html + ' · e<sup>' + bTxt + '<i>x</i></sup>',
+          text: eqNumber(c.a).text + " · e^(" + bTxt + "x)"
+        };
+      }
+    },
+    logarithmic: {
+      id: "logarithmic",
+      name: "对数回归",
+      desc: "先快后慢 · 边际递减",
+      formulaHtml: "y = a + b·ln x",
+      formulaText: "y = a + b·ln x",
+      p: 2,
+      minN: 3,
+      method: "普通最小二乘（OLS）",
+      requirement: "所有 x 必须大于 0",
+      hint: "先快后慢的边际递减趋势",
+      icon: `<svg viewBox="0 0 60 36" fill="none" aria-hidden="true"><path d="M5 32h51M7 32V4" stroke="currentColor" stroke-opacity=".22" stroke-width="1.1" stroke-linecap="round"/><path d="M8 29c10-15 23-20 45-21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="17" cy="22" r="2.2" fill="currentColor"/><circle cx="30" cy="14" r="2.2" fill="currentColor"/><circle cx="45" cy="9" r="2.2" fill="currentColor"/></svg>`,
+      paramInfo: [{ symbol: "a", desc: "截距" }, { symbol: "b", desc: "对数项系数" }],
+      fit(points) {
+        const c = fitLS(points, [p => Math.log(p)], p => p.y);
+        return { a: c[0], b: c[1] };
+      },
+      predict(c, x) { return c.a + c.b * Math.log(x); },
+      equation(c) {
+        return { y: true, ...sumEquation([{ value: c.a }, { value: c.b, body: " ln <i>x</i>", textBody: " ln x" }]) };
+      }
+    },
+    power: {
+      id: "power",
+      name: "幂函数回归",
+      desc: "幂律关系 · 双对数线性",
+      formulaHtml: "y = a·x<sup>b</sup>",
+      formulaText: "y = a·x^b",
+      p: 2,
+      minN: 3,
+      method: "双对数变换 + OLS",
+      requirement: "所有 x 与 y 必须大于 0",
+      hint: "双对数坐标下近似呈直线",
+      icon: `<svg viewBox="0 0 60 36" fill="none" aria-hidden="true"><path d="M5 32h51M7 32V4" stroke="currentColor" stroke-opacity=".22" stroke-width="1.1" stroke-linecap="round"/><path d="M8 29c18 0 31-10 45-23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="28" r="2.2" fill="currentColor"/><circle cx="30" cy="23" r="2.2" fill="currentColor"/><circle cx="45" cy="11" r="2.2" fill="currentColor"/></svg>`,
+      paramInfo: [{ symbol: "a", desc: "比例系数" }, { symbol: "b", desc: "幂指数" }],
+      fit(points) {
+        const c = fitLS(points, [p => Math.log(p)], p => Math.log(p.y));
+        const a = Math.exp(c[0]);
+        if (!Number.isFinite(a)) throw new Error("幂函数模型的系数超出数值范围，请检查数据量级。");
+        return { a, b: c[1] };
+      },
+      predict(c, x) { return c.a * Math.pow(x, c.b); },
+      equation(c) {
+        const bTxt = formatSupNumber(c.b);
+        return {
+          y: true,
+          html: eqNumber(c.a).html + ' · <i>x</i><sup>' + bTxt + "</sup>",
+          text: eqNumber(c.a).text + " · x^(" + bTxt + ")"
+        };
+      }
+    },
+    hyperbola: {
+      id: "hyperbola",
+      name: "双曲线回归",
+      desc: "反比例叠加 · x ≠ 0",
+      formulaHtml: "y = a + b/x",
+      formulaText: "y = a + b/x",
+      p: 2,
+      minN: 3,
+      method: "普通最小二乘（OLS）",
+      requirement: "所有 x 不能等于 0",
+      hint: "随 x 增大而逐渐趋于稳定值",
+      icon: `<svg viewBox="0 0 60 36" fill="none" aria-hidden="true"><path d="M5 32h51M7 32V4" stroke="currentColor" stroke-opacity=".22" stroke-width="1.1" stroke-linecap="round"/><path d="M8 6c11 19 24 25 45 26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="15" cy="14" r="2.2" fill="currentColor"/><circle cx="29" cy="23" r="2.2" fill="currentColor"/><circle cx="45" cy="29" r="2.2" fill="currentColor"/></svg>`,
+      paramInfo: [{ symbol: "a", desc: "水平渐近值" }, { symbol: "b", desc: "倒数项系数" }],
+      fit(points) {
+        const c = fitLS(points, [p => 1 / p], p => p.y);
+        return { a: c[0], b: c[1] };
+      },
+      predict(c, x) { return c.a + c.b / x; },
+      equation(c) {
+        return { y: true, ...sumEquation([{ value: c.a }, { value: c.b, body: "/<i>x</i>", textBody: "/x" }]) };
+      }
+    },
+    reciprocal: {
+      id: "reciprocal",
+      name: "饱和曲线",
+      desc: "过原点 · 逐渐饱和",
+      formulaHtml: "y = x / (a + bx)",
+      formulaText: "y = x / (a + bx)",
+      p: 2,
+      minN: 3,
+      method: "倒数变换 + OLS",
+      requirement: "所有 x 与 y 不能等于 0",
+      hint: "从原点附近上升并逐渐饱和（如米氏方程）",
+      icon: `<svg viewBox="0 0 60 36" fill="none" aria-hidden="true"><path d="M5 32h51M7 32V4" stroke="currentColor" stroke-opacity=".22" stroke-width="1.1" stroke-linecap="round"/><path d="M8 30c11-6 23-16 45-21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="26" r="2.2" fill="currentColor"/><circle cx="28" cy="18" r="2.2" fill="currentColor"/><circle cx="45" cy="10" r="2.2" fill="currentColor"/></svg>`,
+      paramInfo: [{ symbol: "a", desc: "分母常数项" }, { symbol: "b", desc: "分母一次项" }],
+      fit(points) {
+        const c = fitLS(points, [p => 1 / p], p => 1 / p.y);
+        return { a: c[1], b: c[0] };
+      },
+      predict(c, x) { return x / (c.a + c.b * x); },
+      equation(c) {
+        const denom = sumEquation([{ value: c.a }, { value: c.b, body: "<i>x</i>", textBody: "x" }]);
+        return {
+          y: true,
+          html: '<i>x</i> / (' + denom.html + ")",
+          text: "x / (" + denom.text + ")"
+        };
+      }
+    }
+  };
+
+  const MODEL_LIST = Object.values(MODELS);
+
+  function modelCompatible(point, model) {
+    if (!model) return null;
+    if (model.id === "exponential" && !(point.y > 0)) return { field: "y", reason: "y 必须大于 0" };
+    if (model.id === "logarithmic" && !(point.x > 0)) return { field: "x", reason: "x 必须大于 0" };
+    if (model.id === "power") {
+      if (!(point.x > 0)) return { field: "x", reason: "x 必须大于 0" };
+      if (!(point.y > 0)) return { field: "y", reason: "y 必须大于 0" };
+    }
+    if (model.id === "hyperbola" && point.x === 0) return { field: "x", reason: "x 不能等于 0" };
+    if (model.id === "reciprocal") {
+      if (point.x === 0) return { field: "x", reason: "x 不能等于 0" };
+      if (point.y === 0) return { field: "y", reason: "y 不能等于 0" };
+    }
+    return null;
+  }
+
+  /* ==========================================================
+     状态与元素
+     ========================================================== */
+  const state = {
+    modelId: null,
+    rows: [],
+    fit: null,
+    activeView: "fit",
+    xLabel: "x",
+    yLabel: "y",
+    hoverIndex: null,
+    chartHits: [],
+    fitTimer: null,
+    chartTimer: null,
+    toastTimer: null,
+    toastHideTimer: null,
+    fitToastShown: false
+  };
+
+  const $ = id => document.getElementById(id);
+  const els = {
+    modelGrid: $("modelGrid"),
+    modelHint: $("modelHint"),
+    modelStatusChip: $("modelStatusChip"),
+    dataStatusChip: $("dataStatusChip"),
+    dataSummary: $("dataSummary"),
+    flowCurrent: $("flowCurrent"),
+    flowSteps: Array.from(document.querySelectorAll("[data-flow-step]")),
+    pasteToggle: $("pasteToggle"),
+    pastePanel: $("pastePanel"),
+    bulkInput: $("bulkInput"),
+    parseBtn: $("parseBtn"),
+    sampleBtn: $("sampleBtn"),
+    heroSampleBtn: $("heroSampleBtn"),
+    clearBtn: $("clearBtn"),
+    resetBtn: $("resetBtn"),
+    pointBody: $("pointBody"),
+    addRowBtn: $("addRowBtn"),
+    dataHint: $("dataHint"),
+    dataWarning: $("dataWarning"),
+    dataWarningText: $("dataWarningText"),
+    xLabelInput: $("xLabelInput"),
+    yLabelInput: $("yLabelInput"),
+    resultStatusChip: $("resultStatusChip"),
+    resultEmpty: $("resultEmpty"),
+    emptyTitle: $("emptyTitle"),
+    emptyDesc: $("emptyDesc"),
+    resultContent: $("resultContent"),
+    modelBadge: $("modelBadge"),
+    methodBadge: $("methodBadge"),
+    qualityBadge: $("qualityBadge"),
+    equation: $("equation"),
+    equationNote: $("equationNote"),
+    copyBtn: $("copyBtn"),
+    exportCsvBtn: $("exportCsvBtn"),
+    r2Value: $("r2Value"),
+    r2Meta: $("r2Meta"),
+    r2Fill: $("r2Fill"),
+    chartTabs: Array.from(document.querySelectorAll(".chart-tab")),
+    chartNote: $("chartNote"),
+    chartLegend: $("chartLegend"),
+    chartExportBtn: $("chartExportBtn"),
+    chartWrap: $("chartWrap"),
+    chartCanvas: $("chartCanvas"),
+    chartTip: $("chartTip"),
+    statR2: $("statR2"),
+    statAdjR2: $("statAdjR2"),
+    statRmse: $("statRmse"),
+    statMae: $("statMae"),
+    statSse: $("statSse"),
+    statN: $("statN"),
+    paramBody: $("paramBody"),
+    summaryModel: $("summaryModel"),
+    summaryList: $("summaryList"),
+    panelNote: $("panelNote"),
+    toast: $("toast"),
+    toastMessage: $("toastMessage"),
+    toastAction: $("toastAction"),
+    liveStatus: $("liveStatus")
+  };
+
+  /* ==========================================================
+     数据表
+     ========================================================== */
+  function blankRow() { return { x: "", y: "" }; }
+  function blankRows(n) { return Array.from({ length: n }, blankRow); }
+
+  function createRowElement(row, index, total) {
+    const tr = document.createElement("tr");
+    tr.dataset.row = String(index);
+
+    const tdNo = document.createElement("td");
+    const no = document.createElement("span");
+    no.className = "row-no";
+    no.textContent = String(index + 1).padStart(2, "0");
+    tdNo.appendChild(no);
+
+    const tdX = document.createElement("td");
+    const wrapX = document.createElement("div");
+    wrapX.className = "cell-wrap";
+    const inputX = document.createElement("input");
+    inputX.className = "point-input";
+    inputX.type = "text";
+    inputX.inputMode = "decimal";
+    inputX.autocomplete = "off";
+    inputX.spellcheck = false;
+    inputX.placeholder = "x";
+    inputX.value = row.x;
+    inputX.dataset.index = String(index);
+    inputX.dataset.key = "x";
+    inputX.setAttribute("aria-label", "第 " + (index + 1) + " 组 x 值");
+    wrapX.appendChild(inputX);
+    tdX.appendChild(wrapX);
+
+    const tdY = document.createElement("td");
+    const wrapY = document.createElement("div");
+    wrapY.className = "cell-wrap";
+    const inputY = document.createElement("input");
+    inputY.className = "point-input";
+    inputY.type = "text";
+    inputY.inputMode = "decimal";
+    inputY.autocomplete = "off";
+    inputY.spellcheck = false;
+    inputY.placeholder = "y";
+    inputY.value = row.y;
+    inputY.dataset.index = String(index);
+    inputY.dataset.key = "y";
+    inputY.setAttribute("aria-label", "第 " + (index + 1) + " 组 y 值");
+    wrapY.appendChild(inputY);
+    tdY.appendChild(wrapY);
+
+    const tdAction = document.createElement("td");
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "row-delete";
+    del.dataset.deleteIndex = String(index);
+    del.setAttribute("aria-label", "删除第 " + (index + 1) + " 组数据");
+    del.title = "删除这一行";
+    del.disabled = total <= 1;
+    del.innerHTML = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 4.5h9M6 4.5V3.2h4v1.3M5 4.5l.5 8h5l.5-8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    tdAction.appendChild(del);
+
+    tr.append(tdNo, tdX, tdY, tdAction);
+    return tr;
+  }
+
+  function renderRows() {
+    const frag = document.createDocumentFragment();
+    state.rows.forEach((row, i) => frag.appendChild(createRowElement(row, i, state.rows.length)));
+    els.pointBody.replaceChildren(frag);
+  }
+
+  function appendBlankRow(render = true, focus = false) {
+    state.rows.push(blankRow());
+    if (render) {
+      renderRows();
+      if (focus) focusCell(state.rows.length - 1, "x");
+    } else {
+      const tr = createRowElement(state.rows[state.rows.length - 1], state.rows.length - 1, state.rows.length);
+      els.pointBody.appendChild(tr);
+      updateDeleteButtons();
+    }
+    if (focus) {
+      // 等 DOM 更新完成后再聚焦
+      requestAnimationFrame(() => focusCell(state.rows.length - 1, "x"));
+    }
+  }
+
+  function updateDeleteButtons() {
+    const buttons = els.pointBody.querySelectorAll(".row-delete");
+    buttons.forEach(btn => { btn.disabled = state.rows.length <= 1; });
+  }
+
+  function focusCell(index, key) {
+    const input = els.pointBody.querySelector('input[data-index="' + index + '"][data-key="' + key + '"]');
+    if (input) {
+      input.focus();
+      if (typeof input.setSelectionRange === "function") {
+        const len = input.value.length;
+        try { input.setSelectionRange(len, len); } catch (_) {}
+      }
+    }
+  }
+
+  function removeRow(index) {
+    if (state.rows.length <= 1) return;
+    state.rows.splice(index, 1);
+    renderRows();
+    if (!state.rows.some(r => r.x.trim() !== "" || r.y.trim() !== "")) {
+      state.rows = blankRows(5);
+      renderRows();
+    } else if (state.rows.length < 1) {
+      state.rows = blankRows(1);
+      renderRows();
+    }
+    scheduleFit();
+  }
+
+  /* ==========================================================
+     数字解析与数据收集
+     ========================================================== */
+  function normalizeDigits(str) {
+    return String(str)
+      .replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+      .replace(/[−–—]/g, "-")
+      .replace(/[＋]/g, "+")
+      .replace(/。/g, ".")
+      .replace(/[，]/g, ",");
+  }
+
+  function parseNumeric(value) {
+    if (value == null) return NaN;
+    let s = normalizeDigits(value).trim();
+    if (!s) return NaN;
+    s = s.replace(/\s+/g, "");
+    if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) s = s.replace(/,/g, "");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function isNumericToken(token) {
+    return Number.isFinite(parseNumeric(token));
+  }
+
+  function collectData() {
+    const points = [];
+    const invalid = [];
+    state.rows.forEach((row, i) => {
+      const rawX = String(row.x).trim();
+      const rawY = String(row.y).trim();
+      if (!rawX && !rawY) return;
+      const x = parseNumeric(rawX);
+      const y = parseNumeric(rawY);
+      const badX = rawX !== "" && !Number.isFinite(x);
+      const badY = rawY !== "" && !Number.isFinite(y);
+      if (badX || badY) {
+        invalid.push({ row: i, field: badX ? "x" : "y", type: "nan" });
+        return;
+      }
+      if (!rawX || !rawY) {
+        invalid.push({ row: i, field: !rawX ? "x" : "y", type: "missing" });
+        return;
+      }
+      points.push({ x, y, row: i });
+    });
+    return { points, invalid };
+  }
+
+  function collectDomainErrors(points, model) {
+    const errors = [];
+    if (!model) return errors;
+    for (const p of points) {
+      const problem = modelCompatible(p, model);
+      if (problem) errors.push({ ...problem, row: p.row, value: p[problem.field] });
+    }
+    return errors;
+  }
+
+  function setInputInvalid(index, key, invalid) {
+    const input = els.pointBody.querySelector('input[data-index="' + index + '"][data-key="' + key + '"]');
+    if (!input) return;
+    input.classList.toggle("is-invalid", invalid);
+    if (invalid) input.setAttribute("aria-invalid", "true");
+    else input.removeAttribute("aria-invalid");
+  }
+
+  function applyRowMarks(invalid, domainErrors) {
+    els.pointBody.querySelectorAll(".point-input").forEach(input => {
+      input.classList.remove("is-invalid");
+      input.removeAttribute("aria-invalid");
+    });
+    invalid.forEach(item => setInputInvalid(item.row, item.field, true));
+    domainErrors.forEach(item => setInputInvalid(item.row, item.field, true));
+  }
+
+  function issueMessage(invalid, domainErrors, model) {
+    const parts = [];
+    if (domainErrors.length) {
+      const rows = domainErrors.slice(0, 4).map(e => "第 " + (e.row + 1) + " 行（" + e.field + " = " + formatNum(e.value) + "）").join("、");
+      const more = domainErrors.length > 4 ? " 等 " + domainErrors.length + " 处" : "";
+      parts.push(model.name + "要求 " + domainErrors[0].reason + "；" + rows + more + "不满足。");
+    }
+    const nanRows = invalid.filter(i => i.type === "nan").map(i => i.row + 1);
+    if (nanRows.length) parts.push("第 " + [...new Set(nanRows)].join("、") + " 行包含无法识别的数字，已暂时忽略。");
+    const missingRows = invalid.filter(i => i.type === "missing").map(i => i.row + 1);
+    if (missingRows.length) parts.push("第 " + [...new Set(missingRows)].join("、") + " 行只填写了一个数值，已暂时忽略。");
+    return parts.join(" ");
+  }
+
+  function renderDataStatus(points, invalid, domainErrors, model) {
+    const n = points.length;
+    const issueCount = invalid.length + domainErrors.length;
+    els.dataSummary.textContent = n + " 组有效数据" + (invalid.length ? " · " + invalid.length + " 行待完善" : "");
+    if (n > 0) {
+      els.dataStatusChip.textContent = n + " 组有效";
+      els.dataStatusChip.className = "status-chip is-ready";
+    } else if (invalid.length) {
+      els.dataStatusChip.textContent = "待完善";
+      els.dataStatusChip.className = "status-chip is-warn";
+    } else {
+      els.dataStatusChip.textContent = "等待数据";
+      els.dataStatusChip.className = "status-chip";
+    }
+    if (issueCount && model && domainErrors.length) {
+      els.dataStatusChip.textContent = "需调整";
+      els.dataStatusChip.className = "status-chip is-warn";
+    }
+  }
+
+  function updateDataHint(model) {
+    if (!model) {
+      els.dataHint.textContent = "选择模型后，这里会显示数据要求。";
+      return;
+    }
+    els.dataHint.innerHTML = "<strong>" + escapeHtml(model.name) + "</strong> · " + escapeHtml(model.requirement) + " · 至少 " + model.minN + " 组数据";
+  }
+
+  function showDataWarning(message, danger = false) {
+    if (!message) {
+      els.dataWarning.hidden = true;
+      els.dataWarningText.textContent = "";
+      return;
+    }
+    els.dataWarning.hidden = false;
+    els.dataWarning.classList.toggle("is-danger", danger);
+    els.dataWarningText.textContent = message;
+  }
+
+  /* ==========================================================
+     模型选择
+     ========================================================== */
+  function renderModels() {
+    const frag = document.createDocumentFragment();
+    MODEL_LIST.forEach(model => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "model-card";
+      btn.dataset.model = model.id;
+      btn.setAttribute("aria-pressed", "false");
+      btn.setAttribute("aria-label", model.name + "，" + model.formulaText);
+      btn.innerHTML = `
+        <span class="model-top">
+          <span class="model-glyph">${model.icon}</span>
+          <span class="model-check"><svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="m2 6.2 2.4 2.4L10 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </span>
+        <span class="model-name">${escapeHtml(model.name)}</span>
+        <span class="model-desc">${escapeHtml(model.desc)}</span>
+        <span class="model-formula">${model.formulaHtml}</span>
+      `;
+      frag.appendChild(btn);
+    });
+    els.modelGrid.replaceChildren(frag);
+  }
+
+  function getModel() { return state.modelId ? MODELS[state.modelId] : null; }
+
+  function updateModelSelection() {
+    const cards = els.modelGrid.querySelectorAll(".model-card");
+    cards.forEach(card => {
+      const selected = card.dataset.model === state.modelId;
+      card.classList.toggle("is-selected", selected);
+      card.setAttribute("aria-pressed", selected ? "true" : "false");
+    });
+    if (state.modelId) {
+      const model = getModel();
+      els.modelStatusChip.textContent = model.name;
+      els.modelStatusChip.className = "status-chip is-ready";
+    } else {
+      els.modelStatusChip.textContent = "未选择";
+      els.modelStatusChip.className = "status-chip";
+    }
+  }
+
+  function updateModelHint() {
+    const model = getModel();
+    if (!model) {
+      els.modelHint.innerHTML = '<strong>怎么选？</strong>均匀变化选线性；明显弯曲选二次；快速增减选指数；先快后慢选对数；饱和趋势选双曲线。选好后，下方会显示该模型的取值要求。';
+      return;
+    }
+    els.modelHint.innerHTML = '<strong>' + escapeHtml(model.name) + '：</strong>适合' + escapeHtml(model.hint) + '。要求：' + escapeHtml(model.requirement) + '；至少 ' + model.minN + ' 组数据。';
+  }
+
+  function selectModel(id) {
+    if (!MODELS[id] || state.modelId === id) return;
+    state.modelId = id;
+    state.fit = null;
+    state.fitToastShown = false;
+    state.activeView = "fit";
+    state.hoverIndex = null;
+    hideChartTip();
+    updateModelSelection();
+    updateModelHint();
+    updateDataHint(getModel());
+    updateChartTabs();
+    updateChartLegend();
+    runFit({ silent: true });
+    // 延迟显示，让新结果先完成渲染
+    const model = getModel();
+    const hasAnyData = state.rows.some(r => r.x.trim() !== "" || r.y.trim() !== "");
+    const suffix = state.fit ? "，拟合已更新" : hasAnyData ? "，请补充或检查数据" : "，请输入数据";
+    showToast("已选择「" + model.name + "」" + suffix, { duration: 2200 });
+  }
+
+  /* ==========================================================
+     拟合与统计
+     ========================================================== */
+  function calculateStats(points, predictions, p) {
+    const n = points.length;
+    let yMean = 0;
+    for (const point of points) yMean += point.y;
+    yMean /= n;
+    let sse = 0;
+    let sst = 0;
+    let mae = 0;
+    let maxAbs = 0;
+    const residuals = [];
+    for (let i = 0; i < n; i++) {
+      const residual = points[i].y - predictions[i];
+      residuals.push(residual);
+      sse += residual * residual;
+      sst += (points[i].y - yMean) * (points[i].y - yMean);
+      mae += Math.abs(residual);
+      maxAbs = Math.max(maxAbs, Math.abs(residual));
+    }
+    mae /= n;
+    const rmse = Math.sqrt(sse / n);
+    const r2 = sst > 1e-20 ? Math.min(1, 1 - sse / sst) : null;
+    const adjR2 = r2 != null && n > p ? 1 - (1 - r2) * (n - 1) / (n - p) : null;
+    const standardError = n > p ? Math.sqrt(sse / (n - p)) : null;
+    return { n, p, sse, sst, mae, rmse, maxAbs, residuals, r2, adjR2, standardError, yMean };
+  }
+
+  function fitData(points, model) {
+    const coefs = model.fit(points);
+    const predictions = points.map(point => model.predict(coefs, point.x));
+    if (predictions.some(v => !Number.isFinite(v))) {
+      throw new Error("拟合函数在部分数据点处无定义，请检查数据或换一个模型。");
+    }
+    const stats = calculateStats(points, predictions, model.p);
+    const equation = model.equation(coefs);
+    const residuals = stats.residuals;
+    return { model, coefs, predictions, residuals, stats, equation, points };
+  }
+
+  function setEmptyState(title, description, tone = "idle") {
+    state.fit = null;
+    state.chartHits = [];
+    state.hoverIndex = null;
+    hideChartTip();
+    els.resultEmpty.hidden = false;
+    els.resultContent.hidden = true;
+    els.emptyTitle.textContent = title;
+    els.emptyDesc.textContent = description;
+    const chip = els.resultStatusChip;
+    if (tone === "error") {
+      chip.textContent = "需要调整";
+      chip.className = "status-chip is-warn";
+    } else if (tone === "waiting") {
+      chip.textContent = "等待数据";
+      chip.className = "status-chip";
+    } else {
+      chip.textContent = "等待拟合";
+      chip.className = "status-chip";
+    }
+  }
+
+  function runFit(options = {}) {
+    const model = getModel();
+    const { points, invalid } = collectData();
+    const domainErrors = collectDomainErrors(points, model);
+    applyRowMarks(invalid, domainErrors);
+    renderDataStatus(points, invalid, domainErrors, model);
+    const message = issueMessage(invalid, domainErrors, model);
+    showDataWarning(message, domainErrors.length > 0);
+
+    const info = { points: points.length, invalid: invalid.length, domainErrors: domainErrors.length, model };
+
+    if (!model) {
+      setEmptyState("先选择一个回归模型", "在上方挑选一种方程，再输入至少 3 组实验数据，拟合结果会自动出现在这里。", "idle");
+      updateFlow(null, info);
+      setLive("尚未选择模型。");
+      return;
+    }
+
+    if (domainErrors.length) {
+      setEmptyState("数据不符合模型要求", message, "error");
+      updateFlow(null, info);
+      setLive("数据不符合所选模型的取值范围。");
+      return;
+    }
+
+    if (points.length === 0) {
+      setEmptyState("模型已就位，等待数据", "已选择「" + model.name + "」。在数据表中填写至少 " + model.minN + " 组 x、y 数据，结果会自动出现。", "waiting");
+      updateFlow(null, info);
+      setLive("等待输入实验数据。");
+      return;
+    }
+
+    if (points.length < model.minN) {
+      const need = model.minN - points.length;
+      setEmptyState("还差 " + need + " 组数据", "当前有 " + points.length + " 组有效数据，「" + model.name + "」至少需要 " + model.minN + " 组。继续添加即可。", "waiting");
+      updateFlow(null, info);
+      setLive("数据点不足，还差 " + need + " 组。");
+      return;
+    }
+
+    let fit;
+    try {
+      fit = fitData(points, model);
+    } catch (err) {
+      const text = err && err.message ? err.message : "拟合过程中出现未知问题。";
+      setEmptyState("这批数据暂时无法拟合", text, "error");
+      updateFlow(null, { ...info, error: text });
+      setLive("拟合失败：" + text);
+      return;
+    }
+
+    state.fit = fit;
+    renderFit(fit);
+    updateFlow(fit, info);
+    const r2Text = fit.stats.r2 == null ? "无法计算 R²" : "R² = " + formatR2(fit.stats.r2);
+    setLive("拟合完成，" + r2Text + "。");
+    if (!options.silent && !state.fitToastShown) {
+      state.fitToastShown = true;
+      showToast("拟合完成 · " + r2Text, {
+        actionLabel: "查看结果",
+        onAction: () => document.getElementById("result-section").scrollIntoView({ behavior: "smooth", block: "start" }),
+        duration: 5000
+      });
+    }
+  }
+
+  function scheduleFit() {
+    clearTimeout(state.fitTimer);
+    state.fitTimer = setTimeout(() => runFit(), 260);
+  }
+
+  function setLive(text) {
+    els.liveStatus.textContent = text;
+  }
+
+  function qualityInfo(r2) {
+    if (r2 == null) return { label: "无法评估", level: "none" };
+    if (r2 >= 0.99) return { label: "拟合极佳", level: "excellent" };
+    if (r2 >= 0.95) return { label: "拟合良好", level: "good" };
+    if (r2 >= 0.90) return { label: "基本吻合", level: "fair" };
+    if (r2 >= 0.80) return { label: "偏差可见", level: "weak" };
+    return { label: "拟合较差", level: "poor" };
+  }
+
+  function renderFit(fit) {
+    const model = fit.model;
+    const stats = fit.stats;
+    const quality = qualityInfo(stats.r2);
+    state.hoverIndex = null;
+    hideChartTip();
+
+    els.resultEmpty.hidden = true;
+    els.resultContent.hidden = false;
+    els.resultStatusChip.textContent = "拟合完成";
+    els.resultStatusChip.className = "status-chip is-ready";
+
+    els.modelBadge.textContent = model.name;
+    els.methodBadge.textContent = model.method.includes("双对数") ? "双对数线性化"
+      : model.method.includes("对数") ? "对数线性化"
+      : model.method.includes("倒数") ? "倒数线性化"
+      : "OLS";
+    els.qualityBadge.textContent = quality.label;
+    els.qualityBadge.dataset.level = quality.level;
+
+    els.equation.innerHTML = '<i>y</i> = ' + fit.equation.html;
+    const paramSymbols = model.paramInfo.map(p => p.symbol).join("、");
+    els.equationNote.textContent = paramSymbols + " 为最小二乘估计参数 · " + model.method + " · 统计量按原始 y 计算";
+
+    const r2Text = stats.r2 == null ? "—" : formatR2(stats.r2);
+    els.r2Value.textContent = r2Text;
+    els.r2Meta.textContent = stats.r2 == null ? "y 值无变化，R² 无法计算" : "n = " + stats.n + " · " + model.name;
+    els.r2Fill.dataset.level = quality.level;
+    els.r2Fill.style.width = "0%";
+    const fillPercent = stats.r2 == null ? 0 : clamp(stats.r2, 0, 1) * 100;
+    requestAnimationFrame(() => { els.r2Fill.style.width = fillPercent.toFixed(1) + "%"; });
+
+    els.statR2.textContent = r2Text;
+    els.statAdjR2.textContent = stats.adjR2 == null ? "—" : formatR2(stats.adjR2);
+    els.statRmse.textContent = formatNum(stats.rmse, 4);
+    els.statMae.textContent = formatNum(stats.mae, 4);
+    els.statSse.textContent = formatNum(stats.sse, 5);
+    els.statN.textContent = String(stats.n);
+
+    els.paramBody.replaceChildren();
+    model.paramInfo.forEach(param => {
+      const tr = document.createElement("tr");
+      const tdS = document.createElement("td");
+      tdS.className = "param-symbol";
+      tdS.textContent = param.symbol;
+      const tdD = document.createElement("td");
+      tdD.className = "param-desc";
+      tdD.textContent = param.desc;
+      const tdV = document.createElement("td");
+      tdV.className = "param-value";
+      tdV.textContent = formatCoefficient(fit.coefs[param.symbol]);
+      tr.append(tdS, tdD, tdV);
+      els.paramBody.appendChild(tr);
+    });
+
+    els.summaryModel.textContent = model.name;
+    const xRange = rangeText(fit.points.map(p => p.x));
+    const yRange = rangeText(fit.points.map(p => p.y));
+    const rows = [
+      ["拟合方法", model.method],
+      ["样本数 n", String(stats.n)],
+      ["参数个数 p", String(model.p)],
+      ["残差自由度", String(stats.n - model.p)],
+      ["回归标准误 S", formatNum(stats.standardError, 4)],
+      ["x 范围", xRange],
+      ["y 范围", yRange]
+    ];
+    els.summaryList.replaceChildren();
+    rows.forEach(([label, value]) => {
+      const div = document.createElement("div");
+      div.className = "summary-row";
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      div.append(dt, dd);
+      els.summaryList.appendChild(div);
+    });
+
+    const notes = [];
+    if (model.method.includes("变换")) notes.push("此模型先做变量变换再拟合；R²、RMSE 等指标已按原始 y 计算。");
+    if (stats.n - model.p <= 2) notes.push("样本量相对参数个数偏少，校正 R² 与误差估计可能不稳定。");
+    if (stats.r2 == null) notes.push("因变量 y 没有变化，决定系数 R² 无定义。");
+    if (notes.length) {
+      els.panelNote.hidden = false;
+      els.panelNote.textContent = notes.join(" ");
+    } else {
+      els.panelNote.hidden = true;
+      els.panelNote.textContent = "";
+    }
+
+    els.chartNote.textContent = "共 " + stats.n + " 个数据点 · 悬停或轻触查看";
+    updateChartLegend();
+    updateChartTabs();
+    updateChartAria();
+    requestAnimationFrame(() => drawChart());
+  }
+
+  function rangeText(values) {
+    if (!values.length) return "—";
+    let min = values[0];
+    let max = values[0];
+    for (const v of values) { if (v < min) min = v; if (v > max) max = v; }
+    if (min === max) return formatNum(min, 5);
+    return formatNum(min, 5) + " — " + formatNum(max, 5);
+  }
+
+  function updateFlow(fit, info) {
+    const hasModel = !!state.modelId;
+    const hasFit = !!fit;
+    const n = info ? info.points : 0;
+    const minN = getModel() ? getModel().minN : 3;
+
+    els.flowSteps.forEach(step => {
+      const num = Number(step.dataset.flowStep);
+      step.classList.remove("is-active", "is-done");
+      if (num === 1) {
+        if (hasModel) step.classList.add("is-done");
+        else step.classList.add("is-active");
+      } else if (num === 2) {
+        if (hasModel && !hasFit) step.classList.add("is-active");
+        if (hasFit) step.classList.add("is-done");
+      } else if (num === 3) {
+        if (hasFit) step.classList.add("is-active");
+      }
+    });
+
+    const model = getModel();
+    if (!model) {
+      els.flowCurrent.textContent = "选择一个回归模型";
+    } else if (hasFit) {
+      els.flowCurrent.textContent = model.name + " · 拟合完成";
+    } else if (info && info.domainErrors) {
+      els.flowCurrent.textContent = "数据不满足模型要求";
+    } else if (info && info.error) {
+      els.flowCurrent.textContent = "暂时无法拟合";
+    } else if (n === 0) {
+      els.flowCurrent.textContent = model.name + " · 等待数据";
+    } else if (n < minN) {
+      els.flowCurrent.textContent = model.name + " · 还差 " + (minN - n) + " 组";
+    } else {
+      els.flowCurrent.textContent = model.name + " · 等待拟合";
+    }
+  }
+
+  /* ==========================================================
+     图表
+     ========================================================== */
+  const CHART = {
+    ink: "#173b32",
+    inkSoft: "#4a625a",
+    muted: "#7b8881",
+    grid: "rgba(23,59,50,.085)",
+    axis: "rgba(23,59,50,.26)",
+    point: "#15594a",
+    pointInner: "#1e6d5b",
+    halo: "#fffdf8",
+    curve: "#e26943",
+    curveGlow: "rgba(226,105,67,.14)",
+    residual: "#d96541",
+    zero: "rgba(23,59,50,.38)",
+    bg: "#fffdf8"
+  };
+
+  function niceStep(raw) {
+    if (!(raw > 0) || !Number.isFinite(raw)) return 1;
+    const exponent = Math.floor(Math.log10(raw));
+    const pow = Math.pow(10, exponent);
+    const fraction = raw / pow;
+    let nice;
+    if (fraction <= 1) nice = 1;
+    else if (fraction <= 2) nice = 2;
+    else if (fraction <= 2.5) nice = 2.5;
+    else if (fraction <= 5) nice = 5;
+    else nice = 10;
+    return nice * pow;
+  }
+
+  function makeTicks(min, max, target) {
+    const span = max - min;
+    if (!(span > 0)) return { values: [min], step: 1 };
+    const step = niceStep(span / Math.max(2, target));
+    const start = Math.ceil((min - step * 1e-9) / step) * step;
+    const values = [];
+    for (let v = start, i = 0; v <= max + step * 1e-7 && i < 40; v += step, i++) {
+      values.push(Number(v.toPrecision(12)));
+    }
+    return { values, step };
+  }
+
+  function setupChartCanvas(canvas, width, height, opts) {
+    const dpr = opts.dpr || Math.min(window.devicePixelRatio || 1, 2.25);
+    canvas.width = Math.max(1, Math.round(width * dpr));
+    canvas.height = Math.max(1, Math.round(height * dpr));
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    return ctx;
+  }
+
+  function paintChart(canvas, width, height, view, options = {}) {
+    const fit = state.fit;
+    if (!fit) return [];
+    const exportMode = !!options.export;
+    const dpr = options.dpr || Math.min(window.devicePixelRatio || 1, 2.25);
+    const ctx = setupChartCanvas(canvas, width, height, { dpr });
+    if (exportMode) {
+      ctx.fillStyle = CHART.bg;
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    const mobile = width < 580;
+    const pad = {
+      l: mobile ? 51 : (exportMode ? 76 : 66),
+      r: mobile ? 16 : (exportMode ? 34 : 28),
+      t: exportMode ? 77 : (mobile ? 19 : 23),
+      b: mobile ? 53 : (exportMode ? 65 : 56)
+    };
+    const plotW = width - pad.l - pad.r;
+    const plotH = height - pad.t - pad.b;
+    if (plotW <= 10 || plotH <= 10) return [];
+
+    const points = fit.points;
+    const residuals = fit.residuals;
+    const xValues = points.map(p => p.x);
+    const yValues = points.map(p => p.y);
+    let minX = Math.min(...xValues);
+    let maxX = Math.max(...xValues);
+    let rawXSpan = maxX - minX;
+    if (!(rawXSpan > 0)) {
+      const center = minX;
+      minX = center - 1;
+      maxX = center + 1;
+      rawXSpan = 2;
+    }
+    const xPad = rawXSpan * 0.055;
+    let xMin = minX - xPad;
+    let xMax = maxX + xPad;
+    if ((fit.model.id === "logarithmic" || fit.model.id === "power") && xMin <= 0) {
+      xMin = Math.max(minX * 0.55, 1e-12);
+    }
+    if (fit.model.id === "hyperbola" || fit.model.id === "reciprocal") {
+      if (xMin === 0) xMin = -xPad;
+      if (xMax === 0) xMax = xPad;
+    }
+
+    let yMin;
+    let yMax;
+    if (view === "residual") {
+      let maxAbs = 0;
+      for (const r of residuals) maxAbs = Math.max(maxAbs, Math.abs(r));
+      if (!(maxAbs > 0)) maxAbs = 1;
+      const padY = maxAbs * 0.18;
+      yMin = -maxAbs - padY;
+      yMax = maxAbs + padY;
+    } else {
+      const fitValues = fit.predictions.slice();
+      let low = Math.min(...yValues, ...fitValues);
+      let high = Math.max(...yValues, ...fitValues);
+      if (!Number.isFinite(low) || !Number.isFinite(high)) {
+        low = Math.min(...yValues);
+        high = Math.max(...yValues);
+      }
+      if (low === high) { low -= 1; high += 1; }
+      const padY = (high - low) * 0.09;
+      yMin = low - padY;
+      yMax = high + padY;
+    }
+
+    const xTicks = makeTicks(xMin, xMax, mobile ? 4 : 6);
+    const yTicks = makeTicks(yMin, yMax, mobile ? 4 : 5);
+    const px = x => pad.l + (x - xMin) / (xMax - xMin) * plotW;
+    const py = y => pad.t + (yMax - y) / (yMax - yMin) * plotH;
+
+    // 图表背景 / 网格
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pad.l, pad.t, plotW, plotH);
+    ctx.clip();
+
+    ctx.strokeStyle = CHART.grid;
+    ctx.lineWidth = 1;
+    for (const tick of xTicks.values) {
+      const sx = px(tick);
+      ctx.beginPath();
+      ctx.moveTo(Math.round(sx) + .5, pad.t);
+      ctx.lineTo(Math.round(sx) + .5, pad.t + plotH);
+      ctx.stroke();
+    }
+    for (const tick of yTicks.values) {
+      const sy = py(tick);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, Math.round(sy) + .5);
+      ctx.lineTo(pad.l + plotW, Math.round(sy) + .5);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 绘图区边框
+    ctx.strokeStyle = CHART.axis;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.l + .5, pad.t);
+    ctx.lineTo(pad.l + .5, pad.t + plotH + .5);
+    ctx.lineTo(pad.l + plotW, pad.t + plotH + .5);
+    ctx.stroke();
+
+    // 坐标轴刻度文字
+    ctx.fillStyle = CHART.muted;
+    ctx.font = (mobile ? '10px ' : '10.5px ') + '"Cascadia Mono", Consolas, monospace';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for (const tick of xTicks.values) {
+      const sx = px(tick);
+      if (sx < pad.l - 1 || sx > pad.l + plotW + 1) continue;
+      ctx.fillText(axisNumber(tick, xTicks.step), sx, pad.t + plotH + 9);
+    }
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (const tick of yTicks.values) {
+      const sy = py(tick);
+      if (sy < pad.t - 1 || sy > pad.t + plotH + 1) continue;
+      ctx.fillText(axisNumber(tick, yTicks.step), pad.l - 9, sy);
+    }
+
+    // 轴名称
+    const xName = state.xLabel.trim() || "x";
+    const yName = state.yLabel.trim() || "y";
+    const yAxisName = view === "residual" ? "残差 (y − ŷ)" : yName;
+    ctx.fillStyle = CHART.inkSoft;
+    ctx.font = '600 ' + (mobile ? '11px ' : '11.5px ') + '"Segoe UI", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(xName, pad.l + plotW / 2, height - (mobile ? 12 : 14));
+    ctx.save();
+    ctx.translate(mobile ? 14 : 17, pad.t + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(yAxisName, 0, 0);
+    ctx.restore();
+
+    if (exportMode) {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = CHART.ink;
+      ctx.font = '650 17px "Segoe UI", "Microsoft YaHei", sans-serif';
+      ctx.fillText("FITLAB · " + (view === "residual" ? "残差图" : "拟合曲线"), pad.l, 37);
+      ctx.fillStyle = CHART.muted;
+      ctx.font = '10.5px "Cascadia Mono", Consolas, monospace';
+      ctx.fillText(fit.model.name + " · n = " + fit.stats.n, pad.l, 54);
+      ctx.textAlign = "right";
+      ctx.fillStyle = CHART.ink;
+      ctx.font = '600 13px "Cascadia Mono", Consolas, monospace';
+      const r2 = fit.stats.r2 == null ? "R² —" : "R² " + formatR2(fit.stats.r2);
+      ctx.fillText(r2, width - pad.r, 39);
+    }
+
+    const hits = [];
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pad.l, pad.t, plotW, plotH);
+    ctx.clip();
+
+    if (view === "residual") {
+      const zeroY = py(0);
+      ctx.strokeStyle = CHART.zero;
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([4, 5]);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, zeroY);
+      ctx.lineTo(pad.l + plotW, zeroY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      points.forEach((point, i) => {
+        const residual = residuals[i];
+        const sx = px(point.x);
+        const sy = py(residual);
+        ctx.strokeStyle = "rgba(226,105,67,.34)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(sx, zeroY);
+        ctx.lineTo(sx, sy);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(sx, sy, 4.3, 0, Math.PI * 2);
+        ctx.fillStyle = CHART.halo;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(sx, sy, 3.1, 0, Math.PI * 2);
+        ctx.fillStyle = residual >= 0 ? CHART.residual : CHART.pointInner;
+        ctx.fill();
+        hits.push({ index: i, sx, sy, point, pred: fit.predictions[i], residual });
+      });
+    } else {
+      // 拟合曲线
+      const sampleCount = Math.max(320, Math.floor(plotW * 1.7));
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(pad.l, pad.t, plotW, plotH);
+      ctx.clip();
+      ctx.beginPath();
+      let drawing = false;
+      let prevSy = null;
+      for (let i = 0; i < sampleCount; i++) {
+        const x = xMin + (xMax - xMin) * i / (sampleCount - 1);
+        if ((fit.model.id === "logarithmic" || fit.model.id === "power") && !(x > 0)) { drawing = false; prevSy = null; continue; }
+        if ((fit.model.id === "hyperbola" || fit.model.id === "reciprocal") && x === 0) { drawing = false; prevSy = null; continue; }
+        const y = fit.model.predict(fit.coefs, x);
+        if (!Number.isFinite(y)) { drawing = false; prevSy = null; continue; }
+        const sy = py(y);
+        if (!Number.isFinite(sy) || sy < pad.t - plotH * 2 || sy > pad.t + plotH * 3) {
+          drawing = false;
+          prevSy = null;
+          continue;
+        }
+        if (drawing && prevSy != null && Math.abs(sy - prevSy) > plotH * 1.7) {
+          drawing = false;
+        }
+        if (!drawing) {
+          ctx.moveTo(px(x), sy);
+          drawing = true;
+        } else {
+          ctx.lineTo(px(x), sy);
+        }
+        prevSy = sy;
+      }
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.strokeStyle = CHART.curveGlow;
+      ctx.lineWidth = 9;
+      ctx.stroke();
+      ctx.strokeStyle = CHART.curve;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.restore();
+
+      points.forEach((point, i) => {
+        const sx = px(point.x);
+        const sy = py(point.y);
+        ctx.beginPath();
+        ctx.arc(sx, sy, 5.6, 0, Math.PI * 2);
+        ctx.fillStyle = CHART.halo;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+        ctx.fillStyle = CHART.point;
+        ctx.fill();
+        hits.push({ index: i, sx, sy, point, pred: fit.predictions[i], residual: fit.residuals[i] });
+      });
+    }
+
+    if (state.hoverIndex != null && hits[state.hoverIndex]) {
+      const hit = hits[state.hoverIndex];
+      ctx.beginPath();
+      ctx.arc(hit.sx, hit.sy, 8.5, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(226,105,67,.72)";
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+    }
+    ctx.restore();
+    return hits;
+  }
+
+  function drawChart() {
+    const fit = state.fit;
+    if (!fit) return;
+    const width = els.chartWrap.clientWidth;
+    const height = els.chartWrap.clientHeight;
+    if (!width || !height) return;
+    state.chartHits = paintChart(els.chartCanvas, width, height, state.activeView, {
+      dpr: Math.min(window.devicePixelRatio || 1, 2.25)
+    });
+    updateChartAria();
+  }
+
+  function updateChartAria() {
+    if (!state.fit) return;
+    const fit = state.fit;
+    const xName = state.xLabel.trim() || "x";
+    const yName = state.yLabel.trim() || "y";
+    const r2Phrase = fit.stats.r2 == null ? "R² 无法计算" : "R² 为 " + formatR2(fit.stats.r2);
+    els.chartCanvas.setAttribute("aria-label",
+      fit.model.name + "的" + (state.activeView === "residual" ? "残差图" : "拟合曲线图") +
+      "，" + xName + " 对 " + yName + "，共 " + fit.stats.n + " 个数据点，" + r2Phrase + "。"
+    );
+  }
+
+  function updateChartLegend() {
+    if (state.activeView === "residual") {
+      els.chartLegend.innerHTML = '<span class="legend-item"><i class="legend-dot"></i>残差 (y − ŷ)</span><span class="legend-item"><i class="legend-dash"></i>零参考线</span><span class="legend-item" style="color:var(--muted-2)">点越贴近零线，拟合越好</span>';
+    } else {
+      els.chartLegend.innerHTML = '<span class="legend-item"><i class="legend-dot"></i>实验数据</span><span class="legend-item"><i class="legend-line"></i>拟合曲线</span><span class="legend-item" style="color:var(--muted-2)">悬停 / 轻触数据点查看残差</span>';
+    }
+  }
+
+  function updateChartTabs() {
+    els.chartTabs.forEach(tab => {
+      tab.setAttribute("aria-selected", tab.dataset.view === state.activeView ? "true" : "false");
+    });
+  }
+
+  function setChartView(view) {
+    if (view !== "fit" && view !== "residual") return;
+    state.activeView = view;
+    state.hoverIndex = null;
+    hideChartTip();
+    updateChartTabs();
+    updateChartLegend();
+    updateChartAria();
+    drawChart();
+  }
+
+  function nearestHit(mx, my) {
+    let nearest = null;
+    let best = 22 * 22;
+    for (const hit of state.chartHits) {
+      const dx = hit.sx - mx;
+      const dy = hit.sy - my;
+      const d = dx * dx + dy * dy;
+      if (d < best) { best = d; nearest = hit; }
+    }
+    return nearest;
+  }
+
+  function showChartTip(hit) {
+    const fit = state.fit;
+    if (!fit) return;
+    const xName = escapeHtml(state.xLabel.trim() || "x");
+    const yName = escapeHtml(state.yLabel.trim() || "y");
+    const residual = hit.residual;
+    const resClass = residual < 0 ? " is-neg" : "";
+    els.chartTip.innerHTML = `
+      <div class="tip-head">DATA POINT ${String(hit.index + 1).padStart(2, "0")}</div>
+      <div class="tip-row"><span>${xName}</span><b>${formatNum(hit.point.x, 5)}</b></div>
+      <div class="tip-row"><span>${yName}</span><b>${formatNum(hit.point.y, 5)}</b></div>
+      <div class="tip-row"><span>拟合值 ŷ</span><b>${formatNum(hit.pred, 5)}</b></div>
+      <div class="tip-row"><span>残差</span><b class="${resClass.trim()}">${formatNum(residual, 4)}</b></div>
+    `;
+    els.chartTip.hidden = false;
+    const wrapW = els.chartWrap.clientWidth;
+    const wrapH = els.chartWrap.clientHeight;
+    const tw = els.chartTip.offsetWidth;
+    const th = els.chartTip.offsetHeight;
+    let left = hit.sx + 14;
+    if (left + tw > wrapW - 8) left = hit.sx - tw - 14;
+    left = clamp(left, 8, Math.max(8, wrapW - tw - 8));
+    let top = hit.sy - th / 2;
+    top = clamp(top, 8, Math.max(8, wrapH - th - 8));
+    els.chartTip.style.left = left + "px";
+    els.chartTip.style.top = top + "px";
+  }
+
+  function hideChartTip() {
+    els.chartTip.hidden = true;
+    els.chartTip.textContent = "";
+  }
+
+  function handlePointer(e) {
+    if (!state.fit) return;
+    const rect = els.chartCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const hit = nearestHit(mx, my);
+    if (!hit) {
+      if (state.hoverIndex != null) {
+        state.hoverIndex = null;
+        drawChart();
+        hideChartTip();
+      }
+      return;
+    }
+    if (state.hoverIndex !== hit.index) {
+      state.hoverIndex = hit.index;
+      drawChart();
+    }
+    showChartTip(hit);
+  }
+
+  function clearChartHover(e) {
+    if (e && e.pointerType === "touch") return;
+    state.hoverIndex = null;
+    hideChartTip();
+    if (state.fit) drawChart();
+  }
+
+  /* ==========================================================
+     导出 / 复制
+     ========================================================== */
+  function equationText(fit) { return fit.equation.text; }
+
+  function buildReport(fit) {
+    const s = fit.stats;
+    const lines = [
+      "实验数据拟合结果",
+      "——————————————",
+      "模型：" + fit.model.name,
+      "方程：y = " + equationText(fit),
+      "拟合方法：" + fit.model.method,
+      "样本数 n：" + s.n,
+      "参数个数 p：" + fit.model.p,
+      "R²：" + (s.r2 == null ? "—" : formatR2(s.r2)),
+      "校正 R²：" + (s.adjR2 == null ? "—" : formatR2(s.adjR2)),
+      "RMSE：" + formatNum(s.rmse, 5),
+      "MAE：" + formatNum(s.mae, 5),
+      "SSE：" + formatNum(s.sse, 6),
+      "回归标准误 S：" + formatNum(s.standardError, 5),
+      "",
+      "参数估计："
+    ];
+    fit.model.paramInfo.forEach(param => {
+      lines.push("  " + param.symbol + "（" + param.desc + "）= " + formatCoefficient(fit.coefs[param.symbol]));
+    });
+    if (fit.model.method.includes("变换")) lines.push("", "备注：非线性模型经变量变换后拟合，统计量按原始 y 计算。");
+    lines.push("x 轴：" + (state.xLabel.trim() || "x") + "  |  y 轴：" + (state.yLabel.trim() || "y"));
+    return lines.join("\n");
+  }
+
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (_) {}
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.top = "-1000px";
+      ta.style.left = "-1000px";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function safeFilePart(text) {
+    return String(text).replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, "_");
+  }
+
+  function dateStamp() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, "0");
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+
+  function csvNumber(value) {
+    if (!Number.isFinite(value)) return "";
+    return Number(value.toPrecision(12)).toString();
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function exportCsv() {
+    const fit = state.fit;
+    if (!fit) return;
+    const s = fit.stats;
+    const rows = [
+      ["拟合模型", fit.model.name],
+      ["回归方程", "y = " + equationText(fit)],
+      ["拟合方法", fit.model.method],
+      ["样本数 n", s.n],
+      ["参数个数 p", fit.model.p],
+      ["R²", s.r2 == null ? "" : s.r2.toPrecision(10)],
+      ["校正 R²", s.adjR2 == null ? "" : s.adjR2.toPrecision(10)],
+      ["RMSE", s.rmse.toPrecision(10)],
+      ["MAE", s.mae.toPrecision(10)],
+      ["SSE", s.sse.toPrecision(10)],
+      ["回归标准误 S", s.standardError == null ? "" : s.standardError.toPrecision(10)],
+      [],
+      ["序号", "x", "y", "拟合值 y_hat", "残差 y-y_hat"]
+    ];
+    fit.points.forEach((point, i) => {
+      rows.push([
+        i + 1,
+        csvNumber(point.x),
+        csvNumber(point.y),
+        csvNumber(fit.predictions[i]),
+        csvNumber(fit.residuals[i])
+      ]);
+    });
+    const csv = rows.map(row => row.map(cell => {
+      const str = cell == null ? "" : String(cell);
+      return /[",\r\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
+    }).join(",")).join("\r\n");
+    downloadBlob(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }), "拟合结果_" + safeFilePart(fit.model.name) + "_" + dateStamp() + ".csv");
+    showToast("CSV 已导出，可用 Excel 打开", { duration: 2600 });
+  }
+
+  function exportChart() {
+    const fit = state.fit;
+    if (!fit) return;
+    const off = document.createElement("canvas");
+    paintChart(off, 960, 570, state.activeView, { dpr: 2, export: true });
+    const filename = "拟合曲线_" + safeFilePart(fit.model.name) + "_" + dateStamp() + ".png";
+    if (off.toBlob) {
+      off.toBlob(blob => {
+        if (!blob) { showToast("图像导出失败，请重试"); return; }
+        downloadBlob(blob, filename);
+        showToast("图表已导出为 PNG", { duration: 2400 });
+      }, "image/png");
+    } else {
+      const a = document.createElement("a");
+      a.href = off.toDataURL("image/png");
+      a.download = filename;
+      a.click();
+      showToast("图表已导出为 PNG", { duration: 2400 });
+    }
+  }
+
+  /* ==========================================================
+     Toast
+     ========================================================== */
+  function showToast(message, options = {}) {
+    clearTimeout(state.toastTimer);
+    clearTimeout(state.toastHideTimer);
+    els.toastMessage.textContent = message;
+    const hasAction = typeof options.onAction === "function" && options.actionLabel;
+    els.toastAction.hidden = !hasAction;
+    if (hasAction) {
+      els.toastAction.textContent = options.actionLabel;
+      els.toastAction.onclick = () => {
+        hideToast();
+        options.onAction();
+      };
+    } else {
+      els.toastAction.onclick = null;
+    }
+    els.toast.hidden = false;
+    requestAnimationFrame(() => els.toast.classList.add("is-visible"));
+    const duration = options.duration || 2800;
+    state.toastTimer = setTimeout(hideToast, duration);
+  }
+
+  function hideToast() {
+    clearTimeout(state.toastTimer);
+    clearTimeout(state.toastHideTimer);
+    els.toast.classList.remove("is-visible");
+    state.toastHideTimer = setTimeout(() => { els.toast.hidden = true; }, 240);
+  }
+
+  /* ==========================================================
+     批量解析 / 示例
+     ========================================================== */
+  function parseBulkText(text) {
+    const lines = String(text).split(/\r?\n/);
+    const points = [];
+    const badLines = [];
+    let firstContent = true;
+    lines.forEach((raw, idx) => {
+      const line = raw.trim();
+      if (!line || line.startsWith("#") || line.startsWith("//")) return;
+      let parts;
+      if (line.includes("\t")) parts = line.split(/\t+/);
+      else if (/[,，;；]/.test(line)) parts = line.split(/[,，;；]+/);
+      else parts = line.split(/\s+/);
+      parts = parts.map(p => p.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+      if (parts.length < 2) { badLines.push(idx + 1); firstContent = false; return; }
+      const looksHeader = firstContent && !isNumericToken(parts[0]) && !isNumericToken(parts[1]);
+      firstContent = false;
+      if (looksHeader) return;
+      const x = parseNumeric(parts[0]);
+      const y = parseNumeric(parts[1]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) { badLines.push(idx + 1); return; }
+      points.push({ x, y });
+    });
+    return { points, badLines };
+  }
+
+  function applyPoints(points, { closePanel = true } = {}) {
+    state.rows = points.map(p => ({ x: String(p.x), y: String(p.y) }));
+    const targetLength = Math.max(5, state.rows.length + 1);
+    while (state.rows.length < targetLength) state.rows.push(blankRow());
+    renderRows();
+    state.fit = null;
+    if (closePanel) {
+      els.pastePanel.hidden = true;
+      els.pasteToggle.classList.remove("is-active");
+      els.pasteToggle.setAttribute("aria-expanded", "false");
+    }
+    runFit({ silent: true });
+  }
+
+  function loadSample() {
+    const model = getModel();
+    const id = model ? model.id : "quadratic";
+    const xs = [1, 2, 3, 4, 5, 6];
+    let ys;
+    switch (id) {
+      case "linear":
+        ys = xs.map(x => 2.2 + 1.45 * x + Math.sin(x * 1.7) * 0.09);
+        break;
+      case "quadratic":
+        ys = [2.5, 6.0, 14.0, 24.0, 38.4, 55.2];
+        break;
+      case "cubic":
+        ys = xs.map(x => 1 + 1.2 * x - 0.6 * x * x + 0.22 * x * x * x + Math.cos(x) * 0.08);
+        break;
+      case "exponential":
+        ys = xs.map(x => 2.2 * Math.exp(0.38 * x) * (1 + Math.sin(x * 2.1) * 0.012));
+        break;
+      case "logarithmic":
+        ys = xs.map(x => 1.6 + 3.2 * Math.log(x) + Math.sin(x * 1.4) * 0.045);
+        break;
+      case "power":
+        ys = xs.map(x => 1.5 * Math.pow(x, 0.85) * (1 + Math.cos(x * 1.8) * 0.012));
+        break;
+      case "hyperbola":
+        ys = xs.map(x => 2.8 + 7.5 / x + Math.sin(x * 1.9) * 0.06);
+        break;
+      case "reciprocal":
+        ys = xs.map(x => x / (0.9 + 0.52 * x) + Math.cos(x * 1.6) * 0.008);
+        break;
+      default:
+        ys = [2.4, 6.1, 13.8, 24.2, 38.1, 55.6];
+    }
+    const points = xs.map((x, i) => ({ x, y: Number(ys[i].toFixed(3)) }));
+    applyPoints(points);
+    if (model) {
+      showToast("已载入「" + model.name + "」示例数据", { duration: 2400 });
+    } else {
+      showToast("示例数据已填入，请选择一个回归模型", { duration: 3000 });
+    }
+    state.fitToastShown = true;
+  }
+
+  /* ==========================================================
+     重置 / 清空
+     ========================================================== */
+  function clearAllData() {
+    state.rows = blankRows(5);
+    state.fit = null;
+    state.fitToastShown = false;
+    state.activeView = "fit";
+    state.hoverIndex = null;
+    updateChartTabs();
+    updateChartLegend();
+    renderRows();
+    hideChartTip();
+    els.pastePanel.hidden = true;
+    els.pasteToggle.classList.remove("is-active");
+    els.pasteToggle.setAttribute("aria-expanded", "false");
+    els.bulkInput.value = "";
+    runFit({ silent: true });
+    showToast("数据已清空", { duration: 1800 });
+  }
+
+  function resetAll() {
+    const hasSomething = state.modelId || state.rows.some(r => r.x.trim() || r.y.trim()) || state.fit;
+    if (hasSomething && !window.confirm("确定要清空当前模型和所有数据吗？")) return;
+    state.modelId = null;
+    state.rows = blankRows(5);
+    state.fit = null;
+    state.fitToastShown = false;
+    state.activeView = "fit";
+    state.hoverIndex = null;
+    state.xLabel = "x";
+    state.yLabel = "y";
+    updateChartTabs();
+    updateChartLegend();
+    els.xLabelInput.value = "x";
+    els.yLabelInput.value = "y";
+    els.pastePanel.hidden = true;
+    els.pasteToggle.classList.remove("is-active");
+    els.pasteToggle.setAttribute("aria-expanded", "false");
+    els.bulkInput.value = "";
+    updateModelSelection();
+    updateModelHint();
+    updateDataHint(null);
+    renderRows();
+    hideChartTip();
+    runFit({ silent: true });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    showToast("已重新开始", { duration: 1800 });
+  }
+
+  /* ==========================================================
+     事件绑定
+     ========================================================== */
+  function bindEvents() {
+    els.modelGrid.addEventListener("click", e => {
+      const card = e.target.closest(".model-card");
+      if (card) selectModel(card.dataset.model);
+    });
+
+    els.pointBody.addEventListener("input", e => {
+      const input = e.target.closest(".point-input");
+      if (!input) return;
+      const index = Number(input.dataset.index);
+      const key = input.dataset.key;
+      if (!state.rows[index]) return;
+      state.rows[index][key] = input.value;
+      if (index === state.rows.length - 1 && (input.value.trim() !== "" || state.rows[index].x.trim() !== "" || state.rows[index].y.trim() !== "")) {
+        appendBlankRow(false);
+      }
+      scheduleFit();
+    });
+
+    els.pointBody.addEventListener("click", e => {
+      const del = e.target.closest(".row-delete");
+      if (del) removeRow(Number(del.dataset.deleteIndex));
+    });
+
+    els.pointBody.addEventListener("keydown", e => {
+      const input = e.target.closest(".point-input");
+      if (!input || e.key !== "Enter") return;
+      e.preventDefault();
+      const index = Number(input.dataset.index);
+      const key = input.dataset.key;
+      if (key === "x") {
+        focusCell(index, "y");
+      } else {
+        if (index === state.rows.length - 1) appendBlankRow(true);
+        focusCell(index + 1, "x");
+      }
+    });
+
+    els.pointBody.addEventListener("paste", e => {
+      const text = e.clipboardData && e.clipboardData.getData("text");
+      if (!text) return;
+      if (!/[\n\t]/.test(text)) return;
+      const parsed = parseBulkText(text);
+      if (parsed.points.length) {
+        e.preventDefault();
+        applyPoints(parsed.points);
+        showToast("已粘贴 " + parsed.points.length + " 组数据" + (parsed.badLines.length ? "，忽略 " + parsed.badLines.length + " 行" : ""), { duration: 2600 });
+      }
+    });
+
+    els.addRowBtn.addEventListener("click", () => appendBlankRow(true, true));
+
+    els.pasteToggle.addEventListener("click", () => {
+      const open = els.pastePanel.hidden;
+      els.pastePanel.hidden = !open;
+      els.pasteToggle.classList.toggle("is-active", open);
+      els.pasteToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) requestAnimationFrame(() => els.bulkInput.focus());
+    });
+
+    els.parseBtn.addEventListener("click", () => {
+      const parsed = parseBulkText(els.bulkInput.value);
+      if (!parsed.points.length) {
+        showToast("没有识别到有效数据，请检查格式", { duration: 3200 });
+        return;
+      }
+      applyPoints(parsed.points);
+      showToast("已导入 " + parsed.points.length + " 组数据" + (parsed.badLines.length ? "，忽略 " + parsed.badLines.length + " 行" : ""), { duration: 2800 });
+      els.bulkInput.value = "";
+    });
+
+    els.sampleBtn.addEventListener("click", loadSample);
+    els.heroSampleBtn.addEventListener("click", loadSample);
+    els.clearBtn.addEventListener("click", clearAllData);
+    els.resetBtn.addEventListener("click", resetAll);
+
+    els.xLabelInput.addEventListener("input", () => {
+      state.xLabel = els.xLabelInput.value;
+      updateChartAria();
+      clearTimeout(state.chartTimer);
+      state.chartTimer = setTimeout(() => { if (state.fit) drawChart(); }, 100);
+    });
+    els.yLabelInput.addEventListener("input", () => {
+      state.yLabel = els.yLabelInput.value;
+      updateChartAria();
+      clearTimeout(state.chartTimer);
+      state.chartTimer = setTimeout(() => { if (state.fit) drawChart(); }, 100);
+    });
+
+    els.chartTabs.forEach(tab => {
+      tab.addEventListener("click", () => setChartView(tab.dataset.view));
+      tab.addEventListener("keydown", e => {
+        if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+        e.preventDefault();
+        const next = state.activeView === "fit" ? "residual" : "fit";
+        setChartView(next);
+        const target = next === "fit" ? document.getElementById("fitTab") : document.getElementById("residualTab");
+        target.focus();
+      });
+    });
+
+    els.chartCanvas.addEventListener("pointermove", handlePointer);
+    els.chartCanvas.addEventListener("pointerdown", handlePointer);
+    els.chartCanvas.addEventListener("pointerleave", clearChartHover);
+    els.chartCanvas.addEventListener("pointercancel", () => { hideChartTip(); });
+    document.addEventListener("pointerdown", e => {
+      if (state.hoverIndex == null) return;
+      if (els.chartWrap.contains(e.target)) return;
+      state.hoverIndex = null;
+      hideChartTip();
+      if (state.fit) drawChart();
+    });
+
+    els.copyBtn.addEventListener("click", async () => {
+      if (!state.fit) return;
+      const ok = await copyToClipboard(buildReport(state.fit));
+      showToast(ok ? "拟合结果已复制到剪贴板" : "复制失败，请手动选择方程文本", { duration: 2400 });
+    });
+    els.exportCsvBtn.addEventListener("click", exportCsv);
+    els.chartExportBtn.addEventListener("click", exportChart);
+
+    if ("ResizeObserver" in window) {
+      const observer = new ResizeObserver(() => {
+        clearTimeout(state.chartTimer);
+        state.chartTimer = setTimeout(() => { if (state.fit) drawChart(); }, 60);
+      });
+      observer.observe(els.chartWrap);
+    } else {
+      window.addEventListener("resize", () => {
+        clearTimeout(state.chartTimer);
+        state.chartTimer = setTimeout(() => { if (state.fit) drawChart(); }, 100);
+      });
+    }
+    window.addEventListener("orientationchange", () => setTimeout(() => { if (state.fit) drawChart(); }, 200));
+  }
+
+  /* ==========================================================
+     初始化
+     ========================================================== */
+  function init() {
+    state.rows = blankRows(5);
+    renderModels();
+    renderRows();
+    updateModelSelection();
+    updateModelHint();
+    updateDataHint(null);
+    updateFlow(null, { points: 0, invalid: 0, domainErrors: 0, model: null });
+    setEmptyState("先选择一个回归模型", "在上方挑选一种方程，再输入至少 3 组实验数据，拟合结果会自动出现在这里。", "idle");
+    updateChartTabs();
+    updateChartLegend();
+    bindEvents();
+
+    // 便于离线调试 / 课堂扩展，不影响普通使用
+    window.__FITLAB__ = {
+      models: MODELS,
+      getState: () => state,
+      runFit,
+      parseBulkText
+    };
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
